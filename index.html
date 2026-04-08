@@ -216,9 +216,9 @@
             </div>
           </div>
           <div>
-            <div class="text-xs text-muted font-bold" style="text-transform:uppercase; letter-spacing:.05em">⚡ Fórmula de Rateio (Estatuto)</div>
+            <div class="text-xs text-muted font-bold" style="text-transform:uppercase; letter-spacing:.05em">⚡ Fórmula de Rateio (Cotas)</div>
             <div style="margin-top:8px; font-size:15px; font-weight:700; color:var(--accent)">
-              E<sub>cliente</sub> = (C<sub>cliente</sub> / C<sub>total</sub>) × G<sub>usina</sub>
+              E<sub>cliente</sub> = (Cota<sub>cliente</sub> / Cota<sub>total</sub>) × G<sub>usina</sub>
             </div>
           </div>
           <div>
@@ -432,13 +432,30 @@
             <div class="card-body">
               <form id="form-simulador" onsubmit="event.preventDefault(); ModSimulador.calcular()">
 
-                <div class="form-group">
-                  <label>Consumo Mensal (kWh) <span class="required">*</span></label>
-                  <div class="input-group">
-                    <input type="number" id="sim-consumo" placeholder="Ex: 350" min="1"
-                      oninput="ModSimulador.autoPreencherConta()" />
-                    <div class="input-addon">kWh</div>
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label>Consumo (kWh) - Últimos 3 meses <span class="required">*</span></label>
+                  <div style="display:flex; gap:8px;">
+                    <input type="number" id="sim-consumo-m1" placeholder="Mês 1" min="1" oninput="ModSimulador.calcularMediaConsumo()" style="flex:1" />
+                    <input type="number" id="sim-consumo-m2" placeholder="Mês 2" min="1" oninput="ModSimulador.calcularMediaConsumo()" style="flex:1" />
+                    <input type="number" id="sim-consumo-m3" placeholder="Mês 3" min="1" oninput="ModSimulador.calcularMediaConsumo()" style="flex:1" />
                   </div>
+                </div>
+
+                <div class="form-group" style="background:#f3f4f6; padding:12px; border-radius:6px; margin-bottom:16px;">
+                  <label style="margin-bottom:4px; font-size:12px; color:var(--gray-600);">Média Calculada (Usada na Simulação)</label>
+                  <div class="input-group">
+                    <input type="number" id="sim-consumo" readonly style="background:transparent; border:none; padding:0; font-size:20px; font-weight:bold; color:var(--primary); box-shadow:none;" />
+                    <div class="input-addon" style="background:transparent; border:none; padding:0; font-weight:bold;">kWh</div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Taxa de Iluminação Pública (CIP/COSIP)</label>
+                  <div class="input-prefix">
+                    <span>R$</span>
+                    <input type="number" id="sim-cip" placeholder="Ex: 25.50" step="0.01" min="0" oninput="ModSimulador.onContaManual()" />
+                  </div>
+                  <div class="form-hint">Opcional. Valor pago direto à concessionária, afetando a visualização da conta final.</div>
                 </div>
 
                 <div class="form-group">
@@ -542,6 +559,17 @@
               </div>
             </div>
 
+            <!-- Cota Recomendada -->
+            <div class="card" style="margin-top:16px; border:2px dashed var(--primary); background: var(--bg-color);">
+              <div class="card-body" style="text-align:center; padding: 24px;">
+                <div class="text-xs text-muted font-bold" style="text-transform:uppercase; margin-bottom:8px;">📌 Cota Instalada Recomendada p/ Rateio</div>
+                <div style="font-size:32px; font-weight:900; color:var(--primary);" id="res-cota-recomendada">—</div>
+                <div class="form-hint" style="margin-top:8px;">
+                  Com base no dimensionamento da usina, transferir esta cota para o cliente garantirá exatamente a energia que ele consome. O sistema fará isso automaticamente ao clicar no botão "Transformar em Cliente".
+                </div>
+              </div>
+            </div>
+
             <!-- Cenários -->
             <div class="card" style="margin-top:16px">
               <div class="card-header"><div class="card-title">📊 Cenários Projetados</div></div>
@@ -613,9 +641,31 @@
               </div>
             </div>
 
-            <button class="btn btn-outline btn-full" style="margin-top:12px" onclick="ModSimulador.exportarResultado()">
-              📄 Exportar Relatório
-            </button>
+            <!-- Impacto Ambiental -->
+            <div class="card" style="margin-top:16px;">
+              <div class="card-header"><div class="card-title">🌱 Impacto Ambiental (Ao Ano)</div></div>
+              <div class="card-body" style="display:flex; gap:16px; flex-wrap:wrap; text-align:center;">
+                <div style="flex:1; background:#f0fdf4; padding:16px; border-radius:8px;">
+                  <div style="font-size:24px; margin-bottom:4px;">🌳</div>
+                  <div style="font-size:20px; font-weight:bold; color:#15803d;" id="res-arvores">—</div>
+                  <div style="font-size:12px; color:#166534;">Árvores Plantadas</div>
+                </div>
+                <div style="flex:1; background:#f0f9ff; padding:16px; border-radius:8px;">
+                  <div style="font-size:24px; margin-bottom:4px;">☁️</div>
+                  <div style="font-size:20px; font-weight:bold; color:#0369a1;" id="res-co2">—</div>
+                  <div style="font-size:12px; color:#075985;">CO₂ Evitado (kg)</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:12px; margin-top:16px;">
+              <button class="btn btn-outline btn-full" onclick="ModSimulador.exportarResultado()">
+                📄 Exportar Relatório
+              </button>
+              <button class="btn btn-primary btn-full" onclick="ModSimulador.transformarEmCliente()">
+                👥 Transformar em Cliente
+              </button>
+            </div>
           </div>
 
           <!-- Estado inicial -->
@@ -698,7 +748,10 @@
             <div class="card-title">📝 Lançamentos</div>
             <div class="card-subtitle">Receitas e despesas adicionais</div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="ModFinanceiro.abrirLanc()">➕ Novo Lançamento</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="ModFinanceiro.gerarBoletoMassa()">🏦 Gerar Boletos (Massa)</button>
+            <button class="btn btn-primary btn-sm" onclick="ModFinanceiro.abrirLanc()">➕ Lançamento</button>
+          </div>
         </div>
         <div class="card-body" style="padding-top:12px">
           <div class="table-wrapper">
@@ -1033,8 +1086,19 @@
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label>Leitura Anterior</label>
+            <input type="number" id="ger-leitura-ant" placeholder="Ex: 12000" min="0" oninput="ModUsina.calcLeitura()" />
+          </div>
+          <div class="form-group">
+            <label>Leitura Atual</label>
+            <input type="number" id="ger-leitura-atu" placeholder="Ex: 48500" min="0" oninput="ModUsina.calcLeitura()" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label>Geração Real (kWh) <span class="required">*</span></label>
             <input type="number" id="ger-real" placeholder="Ex: 36500" min="0" required />
+            <div class="form-hint">Pode ser digitada manualmente ou calculada pelas leituras acima</div>
           </div>
           <div class="form-group">
             <label>Geração Estimada (kWh)</label>

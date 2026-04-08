@@ -104,8 +104,10 @@ const ModUsina = (() => {
         document.getElementById('ger-mes').value       = r.mes_ano;
         document.getElementById('ger-real').value      = r.geracao_real;
         document.getElementById('ger-estimada').value  = r.geracao_estimada;
-        document.getElementById('ger-irrad').value     = r.irradiacao;
-        document.getElementById('ger-obs').value       = r.observacoes;
+        document.getElementById('ger-irrad').value     = r.irradiacao || '';
+        document.getElementById('ger-obs').value       = r.observacoes || '';
+        document.getElementById('ger-leitura-ant').value = r.leitura_ant || '';
+        document.getElementById('ger-leitura-atu').value = r.leitura_atu || '';
       }
     }
     modal.classList.add('open');
@@ -122,12 +124,22 @@ const ModUsina = (() => {
     const est  = parseFloat(document.getElementById('ger-estimada').value);
     const irr  = parseFloat(document.getElementById('ger-irrad').value);
     const obs  = document.getElementById('ger-obs').value.trim();
+    const ant  = parseFloat(document.getElementById('ger-leitura-ant').value);
+    const atu  = parseFloat(document.getElementById('ger-leitura-atu').value);
 
     if (!mes || !real || real <= 0) {
       App.toast('Informe o mês e a geração real.', 'warning'); return;
     }
 
-    const data = { mes_ano: mes, geracao_real: real, geracao_estimada: est || 38000, irradiacao: irr || null, observacoes: obs };
+    const data = { 
+       mes_ano: mes, 
+       geracao_real: real, 
+       geracao_estimada: est || 38000, 
+       irradiacao: irr || null, 
+       observacoes: obs,
+       leitura_ant: isNaN(ant) ? null : ant,
+       leitura_atu: isNaN(atu) ? null : atu
+    };
 
     try {
       if (_editId) { data.id = _editId; await DB.put(DB.STORES.USINA, data); }
@@ -139,6 +151,14 @@ const ModUsina = (() => {
       if (err.name === 'ConstraintError') { App.toast('Já existe registro para este mês.', 'error'); }
       else { App.toast('Erro: ' + err.message, 'error'); }
     }
+  }
+
+  function calcLeitura() {
+     const ant = parseFloat(document.getElementById('ger-leitura-ant').value);
+     const atu = parseFloat(document.getElementById('ger-leitura-atu').value);
+     if(!isNaN(ant) && !isNaN(atu) && atu >= ant) {
+         document.getElementById('ger-real').value = atu - ant;
+     }
   }
 
   async function editar(id) { abrirModal(id); }
@@ -154,12 +174,13 @@ const ModUsina = (() => {
   function getRegistros()     { return _registros; }
 
   function _formatMesAno(mes_ano) {
+    if(!mes_ano) return '—';
     const [y, m] = mes_ano.split('-');
     const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     return `${meses[parseInt(m)-1]}/${y}`;
   }
 
-  return { render, abrirModal, fecharModal, salvar, editar, excluir, getUltimaGeracao, getRegistros };
+  return { render, abrirModal, fecharModal, salvar, editar, excluir, getUltimaGeracao, getRegistros, calcLeitura };
 })();
 
 window.ModUsina = ModUsina;
@@ -248,27 +269,24 @@ const ModRateio = (() => {
       App.toast('Nenhum cliente ativo.', 'warning'); return;
     }
 
+    // Total das cotas em kWp dos associados ativos
+    const cotaTotal = ativos.reduce((s, c) => s + (parseFloat(c.cota_kwp) || 0), 0);
+
     // Consumo de cada cliente no mês
     const consumos = [];
     for (const c of ativos) {
-      const cons = await DB.getSingle(DB.STORES.CONSUMO, 'cliente_id', c.id);
       // Tenta buscar o consumo do mês específico
       const mesConsumos = await DB.getByIndex(DB.STORES.CONSUMO, 'cliente_id', c.id);
       const mesReg = mesConsumos.find(x => x.mes_ano === mes);
       consumos.push({
         cliente: c,
-        consumo_kwh: mesReg ? mesReg.consumo_kwh : (c.consumo_medio || 0),
-        conta_cmc:   mesReg ? mesReg.valor_conta  : ((c.consumo_medio || 0) * _estimarTarifa(c)),
+        consumo_kwh: mesReg ? parseFloat(mesReg.consumo_kwh) : (parseFloat(c.consumo_medio) || 0),
+        conta_cmc:   mesReg ? parseFloat(mesReg.valor_conta)  : ((parseFloat(c.consumo_medio) || 0) * parseFloat(_estimarTarifa(c) || 0)),
       });
     }
 
     const consumoTotal = consumos.reduce((s, x) => s + x.consumo_kwh, 0);
-    if (consumoTotal === 0) { App.toast('Consumo total zerado.', 'error'); return; }
-
-    // Detectar superalocação
-    if (geracaoLiquida > consumoTotal) {
-      App.toast(`⚠️ Geração (${geracaoLiquida.toFixed(0)} kWh) excede consumo total (${consumoTotal.toFixed(0)} kWh). Ajuste a cota ou adicione clientes.`, 'warning');
-    }
+    if (consumoTotal === 0 && cotaTotal === 0) { App.toast('Consumo e Cotas Inexistentes.', 'error'); return; }
 
     // Remover rateios antigos do mês
     const antigos = await DB.getByIndex(DB.STORES.RATEIO, 'mes_ano', mes);
@@ -280,10 +298,11 @@ const ModRateio = (() => {
       const MINIMO = { monofasico: 30, bifasico: 50, trifasico: 100 };
       const minKwh = MINIMO[c.tipo_ligacao] || 30;
 
-      const participacao = consumoTotal > 0 ? (item.consumo_kwh / consumoTotal) : 0;
+      // RATEIO LUMI INSPIRATION: Rateio feito baseado na Cota KWP do cliente
+      const participacao = cotaTotal > 0 ? (parseFloat(c.cota_kwp || 0) / cotaTotal) : (consumoTotal > 0 ? (item.consumo_kwh / consumoTotal) : 0);
       const energiaAlocada = Math.min(
         participacao * geracaoLiquida,
-        item.consumo_kwh - minKwh  // nunca zerar consumo
+        item.consumo_kwh - minKwh  // nunca zerar consumo abaixo do mínimo
       );
       const energiaAlocadaFinal = Math.max(0, energiaAlocada);
 
@@ -469,8 +488,160 @@ const ModRateio = (() => {
     fecharConsumo();
   }
 
+  async function gerarRelatorioPDF() {
+    if (_rateios.length === 0) { App.toast('Sem dados para relatório neste mês.', 'warning'); return; }
+    if (typeof html2pdf === 'undefined') { App.toast('Lib PDF não carregada.', 'error'); return; }
+
+    App.toast('Gerando Relatório...', 'info');
+    const container = document.getElementById('pdf-container');
+    container.style.display = 'block';
+
+    const totalGer = _rateios.reduce((s, r) => s + (r.energia_alocada || 0), 0);
+    const totalEco = _rateios.reduce((s, r) => s + (r.economia_liquida || 0), 0);
+    const totalCont = _rateios.reduce((s, r) => s + (r.contribuicao || 0), 0);
+
+    let html = `
+      <div style="font-family: 'Inter', sans-serif; color: #1f2937; padding:20px;">
+        <div style="text-align:center; border-bottom:2px solid #16a34a; padding-bottom:16px; margin-bottom:20px;">
+          <h1 style="color:#16a34a; margin:0; font-size:24px;">📊 RELATÓRIO DE RATEIO - ${_formatMesAno(_mesAtual)}</h1>
+          <p style="color:#6b7280; margin:4px 0 0; font-size:12px;">Associação Ibiapaba Solar</p>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+           <div style="background:#f3f4f6; padding:10px; border-radius:6px; flex:1; margin-right:10px; text-align:center;">
+             <div style="font-size:10px; color:#6b7280;">ENERGIA ALOCADA</div>
+             <div style="font-size:16px; font-weight:bold;">${totalGer.toLocaleString('pt-BR')} kWh</div>
+           </div>
+           <div style="background:#f0fdf4; padding:10px; border-radius:6px; flex:1; margin-right:10px; text-align:center;">
+             <div style="font-size:10px; color:#166534;">ECONOMIA CLIENTES</div>
+             <div style="font-size:16px; font-weight:bold; color:#15803d;">${App.moeda(totalEco)}</div>
+           </div>
+           <div style="background:#fefce8; padding:10px; border-radius:6px; flex:1; text-align:center;">
+             <div style="font-size:10px; color:#a16207;">CONTRIBUIÇÃO TOTAL</div>
+             <div style="font-size:16px; font-weight:bold; color:#854d0e;">${App.moeda(totalCont)}</div>
+           </div>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:10px; text-align:left;">
+          <thead>
+            <tr style="background:#16a34a; color:#fff;">
+              <th style="padding:6px;">Cliente</th>
+              <th style="padding:6px;">Cons.</th>
+              <th style="padding:6px;">Particip.</th>
+              <th style="padding:6px;">En. Alocada</th>
+              <th style="padding:6px;">Cmc</th>
+              <th style="padding:6px;">Cgd</th>
+              <th style="padding:6px;">Contribuição</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${_rateios.map((r, i) => `
+              <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};">
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb;">${r.nome_cliente || '—'}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb;">${(r.consumo_kwh || 0).toLocaleString('pt-BR')}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb;">${(r.participacao_pct || 0).toFixed(1)}%</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb;">${(r.energia_alocada || 0).toLocaleString('pt-BR')}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb;">${App.moeda(r.valor_conta_cmc)}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb;">${App.moeda(r.valor_conta_cgd)}</td>
+                <td style="padding:6px; border-bottom:1px solid #e5e7eb; font-weight:bold; color:#dc2626;">${App.moeda(r.contribuicao)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="text-align:center; padding-top:20px; font-size:10px; color:#9ca3af;">
+          Documento gerado em ${new Date().toLocaleDateString('pt-BR')}
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+    const opt = { margin: 10, filename: `Rat_${_mesAtual}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    try {
+      await html2pdf().set(opt).from(container).save();
+    } catch(e) { } finally { container.style.display = 'none'; container.innerHTML = ''; }
+  }
+
+  async function gerarRecibosLote() {
+    if (_rateios.length === 0) { App.toast('Sem rateio processado para gerar recibos.', 'warning'); return; }
+    if (typeof html2pdf === 'undefined') { App.toast('Lib PDF não carregada.', 'error'); return; }
+
+    App.toast('Gerando Lote de Recibos...', 'info');
+    const container = document.getElementById('pdf-container');
+    container.style.display = 'block';
+    
+    const clientes = await DB.getAll(DB.STORES.CLIENTES);
+
+    let html = _rateios.map((r, index) => {
+      const cli = clientes.find(c => c.id === r.cliente_id) || {};
+      return `
+        <div style="font-family: 'Inter', sans-serif; color: #1f2937; padding:20px; ${index < _rateios.length - 1 ? 'page-break-after: always;' : ''}">
+          <div style="text-align:center; border-bottom:2px solid #16a34a; padding-bottom:16px; margin-bottom:20px;">
+            <h1 style="color:#16a34a; margin:0; font-size:24px;">☀️ RECIBO DE CONTRIBUIÇÃO</h1>
+            <p style="color:#6b7280; margin:4px 0 0; font-size:12px;">Associação Ibiapaba Solar · Lei 14.300/2022</p>
+          </div>
+
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr style="background:#f9fafb;">
+              <td style="padding:8px; border:1px solid #e5e7eb;"><strong>Associado:</strong></td>
+              <td style="padding:8px; border:1px solid #e5e7eb;">${r.nome_cliente || '—'}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px; border:1px solid #e5e7eb;"><strong>CPF:</strong></td>
+              <td style="padding:8px; border:1px solid #e5e7eb;">${cli.cpf || '—'}</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td style="padding:8px; border:1px solid #e5e7eb;"><strong>Referência:</strong></td>
+              <td style="padding:8px; border:1px solid #e5e7eb;">${_formatMesAno(_mesAtual)}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px; border:1px solid #e5e7eb;"><strong>Consumo:</strong></td>
+              <td style="padding:8px; border:1px solid #e5e7eb;">${(r.consumo_kwh || 0).toLocaleString('pt-BR')} kWh</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td style="padding:8px; border:1px solid #e5e7eb;"><strong>Energia Alocada (GD):</strong></td>
+              <td style="padding:8px; border:1px solid #e5e7eb;">${(r.energia_alocada || 0).toLocaleString('pt-BR')} kWh</td>
+            </tr>
+          </table>
+
+          <div style="background:#dcfce7; padding:16px; border-radius:8px; text-align:center; margin-bottom:20px;">
+            <div style="font-size:12px; color:#166534; text-transform:uppercase; margin-bottom:4px;">Valor da Contribuição Mensal</div>
+            <div style="font-size:28px; font-weight:900; color:#15803d;">${App.moeda(r.contribuicao)}</div>
+            <div style="font-size:12px; color:#166534; margin-top:4px;">Economia gerada: ${App.moeda(r.economia_liquida)}</div>
+          </div>
+
+          <div style="margin-top:40px; display:flex; justify-content:space-between;">
+            <div style="text-align:center; flex:1;">
+              <div style="border-top:1px solid #000; width:200px; margin:0 auto; padding-top:8px;">
+                Associado(a)
+              </div>
+            </div>
+            <div style="text-align:center; flex:1;">
+              <div style="border-top:1px solid #000; width:200px; margin:0 auto; padding-top:8px;">
+                 Associação Ibiapaba Solar
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = html;
+    const opt = { margin: 10, filename: `Recibos_Lote_${_mesAtual}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    try {
+      await html2pdf().set(opt).from(container).save();
+    } catch(e) { } finally { container.style.display = 'none'; container.innerHTML = ''; }
+  }
+
+  function _formatMesAno(mes_ano) {
+    if(!mes_ano) return '—';
+    const [y, m] = mes_ano.split('-');
+    const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    return `${meses[parseInt(m)-1]}/${y}`;
+  }
+
   return { render, processarMes, registrarConsumo, fecharConsumo, salvarConsumo,
-           autoCalcularConta, detectarLocal, onClienteChange, onBandeiraChange, onMunicipioChange };
+           autoCalcularConta, detectarLocal, onClienteChange, onBandeiraChange, 
+           onMunicipioChange, gerarRelatorioPDF, gerarRecibosLote };
 })();
 
 window.ModRateio = ModRateio;

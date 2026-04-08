@@ -243,7 +243,7 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -640,6 +640,21 @@ tbody tr:hover { background: var(--gray-50); }
   .sidebar-overlay.show { display: block; }
   .page-content { padding: 16px; }
   .topbar { padding: 0 16px; }
+  
+  .card [style*="justify-content:space-between"], .card-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  .card [style*="justify-content:space-between"] > div[style*="display:flex; gap:8px;"] {
+    width: 100%; display: flex; flex-direction: column;
+  }
+  .card [style*="justify-content:space-between"] > div[style*="display:flex; gap:8px;"] .btn {
+    width: 100%;
+  }
+  .topbar-actions { gap: 8px; }
+  .topbar-btn { padding: 8px; }
+  .topbar-btn span { display: none; } /* Hide text on mobile for topbar buttons */
 }
 
 /* ============================================================

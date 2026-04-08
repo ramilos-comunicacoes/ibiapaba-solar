@@ -155,13 +155,87 @@ const ModFinanceiro = (() => {
     await render();
   }
 
+  async function gerarBoletoMassa() {
+    App.toast('Gerando boletos para o rateio do mês atual...', 'info');
+    
+    // Na vida real isto integraria com banco (ex: Asaas, Cora)
+    // Aqui geramos um carnê visual em PDF para cobrança
+    const mesAtual = _getMesAtual();
+    const rateios  = _dados.rateios;
+    
+    if (rateios.length === 0) {
+      App.toast('Nenhum rateio para gerar boletos neste mês.', 'warning');
+      return;
+    }
+    
+    const clientes = await DB.getAll(DB.STORES.CLIENTES);
+    const container = document.getElementById('pdf-container');
+    container.style.display = 'block';
+    
+    let html = rateios.map(r => {
+       const cli = clientes.find(c => c.id === r.cliente_id) || {};
+       return `
+         <div style="font-family: monospace; border:1px solid #000; width:100%; margin-bottom:20px; page-break-inside: avoid;">
+           <div style="border-bottom:2px solid #000; padding:10px; display:flex; justify-content:space-between; align-items:flex-end;">
+             <h2 style="margin:0; font-size:20px;">001-9 | RECIBO DE PAGAMENTO / PIX</h2>
+             <span style="font-size:12px;">VENCIMENTO: 10/${_formatMesAno(mesAtual)}</span>
+           </div>
+           
+           <div style="display:flex; border-bottom:1px solid #000;">
+             <div style="flex:3; border-right:1px solid #000; padding:4px 8px;">
+               <span style="font-size:10px; color:#555;">Beneficiário</span><br>
+               <strong>ASSOCIAÇÃO IBIAPABA SOLAR</strong>
+             </div>
+             <div style="flex:1; border-right:1px solid #000; padding:4px 8px;">
+               <span style="font-size:10px; color:#555;">Documento</span><br>
+               RAT-${mesAtual}-${r.cliente_id}
+             </div>
+             <div style="flex:1; padding:4px 8px; background:#f3f4f6; text-align:right;">
+               <span style="font-size:10px; color:#555;">Valor Documento</span><br>
+               <strong style="font-size:16px;">${App.moeda(r.contribuicao)}</strong>
+             </div>
+           </div>
+           
+           <div style="padding:4px 8px; border-bottom:1px solid #000;">
+             <span style="font-size:10px; color:#555;">Pagador</span><br>
+             ${r.nome_cliente}<br>
+             CPF: ${cli.cpf || 'Não informado'}
+           </div>
+           
+           <div style="padding:10px 8px; display:flex; justify-content:space-between;">
+              <div style="font-size:12px; color:#333;">
+                <p>Referente ao Rateio Solidário de Energia Solar.</p>
+                <p>Energia Injetada: <b>${(r.energia_alocada || 0).toLocaleString('pt-BR')} kWh</b></p>
+                <p>Chave PIX: <b>CNPJ 00.000.000/0001-00</b></p>
+              </div>
+              <div style="width:100px; height:100px; border:1px solid #ccc; display:flex; align-items:center; justify-content:center; font-size:10px; color:#999;">
+                [ QR CODE PIX ]
+              </div>
+           </div>
+           
+           <div style="border-top:1px dashed #000; padding-top:10px; margin-top:20px; font-size:10px; text-align:center;">
+             Corte Aqui -------------------------------------------------------------
+           </div>
+         </div>
+       `;
+    }).join('');
+    
+    container.innerHTML = html;
+    
+    const opt = { margin: 10, filename: `Boletos_${mesAtual}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    try {
+      await html2pdf().set(opt).from(container).save();
+    } catch(e) { } finally { container.style.display = 'none'; container.innerHTML = ''; }
+  }
+
   function _formatMesAno(mes_ano) {
+    if (!mes_ano) return '—';
     const [y, m] = mes_ano.split('-');
     const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     return `${meses[parseInt(m) - 1]}/${y}`;
   }
 
-  return { render, abrirLanc, fecharLanc, salvarLanc, excluirLanc };
+  return { render, abrirLanc, fecharLanc, salvarLanc, excluirLanc, gerarBoletoMassa };
 })();
 
 window.ModFinanceiro = ModFinanceiro;

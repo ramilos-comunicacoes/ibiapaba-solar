@@ -30,7 +30,7 @@ const ModSimulador = (() => {
 
     // Restaura bandeira salva
     const bandeiraEl = document.getElementById('sim-bandeira');
-    if (bandeiraEl && Tarifas) {
+    if (bandeiraEl && typeof Tarifas !== 'undefined') {
       bandeiraEl.value = Tarifas.getBandeira();
     }
   }
@@ -53,9 +53,30 @@ const ModSimulador = (() => {
     document.getElementById('sim-perda-label').textContent = `${v}%`;
   }
 
+  /* ── CÁLCULO DE MÉDIA DE CONSUMO ────────────────────────── */
+  function calcularMediaConsumo() {
+    const m1 = parseFloat(document.getElementById('sim-consumo-m1').value) || 0;
+    const m2 = parseFloat(document.getElementById('sim-consumo-m2').value) || 0;
+    const m3 = parseFloat(document.getElementById('sim-consumo-m3').value) || 0;
+    
+    let count = 0;
+    let sum = 0;
+    if(m1 > 0) { sum += m1; count++; }
+    if(m2 > 0) { sum += m2; count++; }
+    if(m3 > 0) { sum += m3; count++; }
+
+    let media = 0;
+    if(count > 0) media = sum / count;
+
+    document.getElementById('sim-consumo').value = media > 0 ? media.toFixed(0) : '';
+    autoPreencherConta();
+  }
+
   /* ── AUTO-CÁLCULO DA CONTA (ENEL-CE) ───────────────────── */
   function autoPreencherConta() {
     if (_contaManual) return; // respeita edição manual
+    if (typeof Tarifas === 'undefined') return;
+
     const kwh  = parseFloat(document.getElementById('sim-consumo').value);
     const tipo = document.getElementById('sim-tipo').value;
     const band = document.getElementById('sim-bandeira')?.value || 'verde';
@@ -84,11 +105,12 @@ const ModSimulador = (() => {
 
     const consumo = parseFloat(document.getElementById('sim-consumo').value);
     const cmc     = parseFloat(document.getElementById('sim-conta').value);
+    const cip     = parseFloat(document.getElementById('sim-cip').value) || 0;
     const tipo    = document.getElementById('sim-tipo').value;
     const perda   = parseInt(document.getElementById('sim-fator-perda').value) / 100;
 
     // Validações
-    if (!consumo || consumo <= 0) { App.toast('Informe o consumo mensal em kWh.', 'warning'); return; }
+    if (!consumo || consumo <= 0) { App.toast('Informe o consumo (ou a média dos meses) em kWh.', 'warning'); return; }
     if (!cmc || cmc <= 0)         { App.toast('Informe o valor da conta atual.', 'warning'); return; }
     if (!tipo)                    { App.toast('Selecione o tipo de ligação.', 'warning'); return; }
 
@@ -100,14 +122,17 @@ const ModSimulador = (() => {
     }
 
     // ---------- CÁLCULOS ----------
-    const tarifa_kwh          = cmc / consumo;               // R$/kWh médio
+    // Desconta o modelo de iluminação pública da conta bruta para uma tarifa limpa de energia
+    const cmc_energia = Math.max(0.1, cmc - cip);
+    
+    const tarifa_kwh          = cmc_energia / consumo;               // R$/kWh médio puro
     const energia_compensavel = consumo - minimoKwh;          // kWh que podem ser compensados
     const energia_com_perda   = energia_compensavel * (1 - perda); // após perda técnica
 
-    // Nova conta (Cgd): paga apenas custo mínimo + eventuais excedentes
+    // Nova conta (Cgd): paga apenas custo mínimo da energia + iluminação pública inteira
     const cgd_kwh             = minimoKwh;                    // kWh cobráveis
-    const cgd                 = cgd_kwh * tarifa_kwh;         // valor estimado pós GD
-
+    const cgd                 = (cgd_kwh * tarifa_kwh) + cip; // valor final pós GD
+    
     // Fórmula do estatuto: ValorContribuição = (Cmc - Cgd) × 0.80
     const margem              = config.margem_seguranca;       // 10%
     const economia_bruta      = cmc - cgd;
@@ -119,12 +144,23 @@ const ModSimulador = (() => {
     // Taxa de compensação efetiva
     const pct_compensado      = (energia_com_perda / consumo) * 100;
 
+    // Métricas Ambientais (estimativa genérica de mercado anual para GD)
+    const consumo_anual = consumo * 12;
+    const co2_evitado = consumo_anual * 0.43; // kg CO2 por kWh
+    const arvores_plantadas = (co2_evitado / 1000) * 7.14; // ~7 árvores por tonelada
+
+
+    const ger = parseFloat(config.geracao_media_estimada) || 38000;
+    const cap = parseFloat(config.capacidade_usina_kwp) || 300;
+    let cota_recomendada = ger > 0 ? (consumo / ger) * cap : 0;
+
     _resultado = {
-      consumo, cmc, tipo, perda, minimoKwh,
+      consumo, cmc, cip, tipo, perda, minimoKwh,
       tarifa_kwh, energia_compensavel, energia_com_perda,
       cgd, economia_bruta, contribuicao,
       economia_real, economia_conserv, economia_liquida,
-      pct_compensado,
+      pct_compensado, cota_recomendada,
+      co2: co2_evitado, arvores: arvores_plantadas
     };
 
     _renderResultado(config);
@@ -156,9 +192,16 @@ const ModSimulador = (() => {
     const pct = Math.min(r.pct_compensado, 100);
     document.getElementById('res-barra-fill').style.width = pct + '%';
 
+    // Cota Recomendada
+    document.getElementById('res-cota-recomendada').textContent = `${(r.cota_recomendada || 0).toFixed(2)} kWp`;
+
     // Projeção anual
     document.getElementById('res-eco-anual').textContent  = App.moeda(r.economia_liquida * 12);
     document.getElementById('res-contrib-anual').textContent = App.moeda(r.contribuicao * 12);
+
+    // Ambiental
+    document.getElementById('res-arvores').textContent = r.arvores.toFixed(1);
+    document.getElementById('res-co2').textContent = r.co2.toFixed(1);
 
     // Alertas
     _renderAlertas(r);
@@ -221,15 +264,29 @@ const ModSimulador = (() => {
           <p style="margin: 5px 0 0; color: #9ca3af; font-size: 12px;">Data da Simulação: ${new Date().toLocaleDateString('pt-BR')}</p>
         </div>
 
-        <h3 style="margin-bottom: 10px; color: #374151;">🧑‍💻 Perfil do Cliente</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px;">
+        <h3 style="margin-bottom: 10px; color: #374151;">🧑‍💻 Perfil Técnico do Cliente</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
           <tr style="background-color: #f3f4f6;">
             <td style="padding: 10px; border: 1px solid #e5e7eb; width: 50%;"><strong>Tipo Ligação:</strong> ${_tipoLabel(r.tipo)}</td>
-            <td style="padding: 10px; border: 1px solid #e5e7eb; width: 50%;"><strong>Consumo Informado:</strong> ${r.consumo} kWh/mês</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb; width: 50%;"><strong>Consumo Médio Projetado:</strong> ${r.consumo} kWh/mês</td>
           </tr>
           <tr>
-            <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Tarifa Média:</strong> R$ ${r.tarifa_kwh.toFixed(4)} / kWh</td>
-            <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Perda Técnica na Injeção:</strong> ${(r.perda*100).toFixed(0)}%</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Cota Instalada (Recomendada):</strong> <span style="color:#16a34a; font-weight:bold;">${parseFloat(r.cota_recomendada || 0).toFixed(2)} kWp</span></td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Tarifa I. Pública (CIP):</strong> ${r.cip > 0 ? App.moeda(r.cip) : 'Isento ou R$ 0,00'}</td>
+          </tr>
+        </table>
+
+        <h3 style="margin-bottom: 10px; color: #374151;">🌱 Impacto e Sustentabilidade (Acumulado em 1 ano)</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; text-align: center; font-size: 14px;">
+          <tr style="background-color: #f0fdf4;">
+            <td style="padding: 10px; border: 1px solid #dcfce7; width: 50%;">
+              <div style="font-size: 20px; font-weight:bold; color: #15803d;">🌳 ${r.arvores.toFixed(1)}</div>
+              <div style="color: #166534; font-size: 12px;">Árvores Plantadas (Equivalência)</div>
+            </td>
+            <td style="padding: 10px; border: 1px solid #e0f2fe; background-color: #f0f9ff; width: 50%;">
+              <div style="font-size: 20px; font-weight:bold; color: #0369a1;">☁️ ${r.co2.toFixed(1)}</div>
+              <div style="color: #075985; font-size: 12px;">CO₂ Evitado na Atmosfera (kg)</div>
+            </td>
           </tr>
         </table>
 
@@ -303,11 +360,37 @@ const ModSimulador = (() => {
     }
   }
 
+  /* ── TRANSFORMAR EM CLIENTE (CRM) ───────────────────────────────── */
+  async function transformarEmCliente() {
+    if (!_resultado) { App.toast('Faça uma simulação primeiro.', 'warning'); return; }
+    
+    // Obter cota kwp baseado na simulação: (consumo / geracao_media_mensal) * capacidade_kwp
+    const config = await _loadConfig();
+    const ger = parseFloat(config.geracao_media_estimada) || 38000;
+    const cap = parseFloat(config.capacidade_usina_kwp) || 300;
+    let cota = 0;
+    
+    if(ger > 0) {
+       cota = (_resultado.consumo / ger) * cap;
+    }
+
+    if(typeof ModClientes !== 'undefined') {
+       App.navegar('clientes');
+       ModClientes.abrirModalComDados({
+          consumo_medio: _resultado.consumo,
+          tipo_ligacao: _resultado.tipo,
+          cota_kwp: cota.toFixed(2)
+       });
+    } else {
+       App.toast('Módulo de clientes não encontrado.', 'error');
+    }
+  }
+
   function _tipoLabel(t) {
     return { monofasico: 'Monofásico', bifasico: 'Bifásico', trifasico: 'Trifásico' }[t] || t;
   }
 
-  return { render, calcular, limpar, exportarResultado, _updatePerdaLabel, autoPreencherConta, onContaManual };
+  return { render, calcular, limpar, exportarResultado, transformarEmCliente, _updatePerdaLabel, autoPreencherConta, onContaManual, calcularMediaConsumo };
 })();
 
 window.ModSimulador = ModSimulador;
