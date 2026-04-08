@@ -46,6 +46,7 @@ const App = (() => {
       usina:      { t: '⚡ Usina',     s: 'Geração e performance' },
       rateio:     { t: '⚖️ Rateio',   s: 'Distribuição inteligente de créditos' },
       simulador:  { t: '🧮 Simulador', s: 'Simulação profissional de economia' },
+      documentos: { t: '📄 Documentos',s: 'Editor de Contratos e Propostas' },
       financeiro: { t: '💰 Financeiro',s: 'Receitas e projeções' },
       backup:     { t: '🔒 Backup',    s: 'Exportação, importação e configurações' },
     };
@@ -67,6 +68,7 @@ const App = (() => {
       case 'usina':      ModUsina.render(); break;
       case 'rateio':     ModRateio.render(); break;
       case 'simulador':  ModSimulador.render(); break;
+      case 'documentos': ModDocumentos.render(); break;
       case 'financeiro': ModFinanceiro.render(); break;
       case 'backup':     ModBackup.render(); break;
     }
