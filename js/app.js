@@ -270,7 +270,9 @@ const App = (() => {
 
   /* ── Autenticação ───────────────────────────────────────── */
   async function fazerLogin() {
-    const email = document.getElementById('login-email').value;
+    const rawUser = document.getElementById('login-email').value.trim();
+    // Transforma o usuário num email válido para o Supabase caso não possua @
+    const email = rawUser.includes('@') ? rawUser : `${rawUser}@ibiapaba.solar`;
     const senha = document.getElementById('login-senha').value;
     const btn = document.getElementById('btn-login');
     const errEl = document.getElementById('login-error');
