@@ -147,8 +147,12 @@ const ModDocumentos = (() => {
          docTemplate = t ? t.valor : DEFAULT_CONTRATO;
       }
 
+      const capConfig = await DB.getConfig('capacidade_usina_kwp') || {valor: 300};
+      const capUsina = parseFloat(capConfig.valor) || 300;
+      const pct = (cliente.cota_kwp > 0 && capUsina > 0) ? ((cliente.cota_kwp / capUsina) * 100).toFixed(2) : 0;
+
       // Função de replace global
-      const htmlMontado = _parserTags(docTemplate, cliente, assocDados);
+      const htmlMontado = _parserTags(docTemplate, cliente, assocDados, pct);
 
       await _renderPDF(htmlMontado, `${tipo.toUpperCase()}_${cliente.nome.replace(/\s+/g,'_')}.pdf`);
 
@@ -161,7 +165,7 @@ const ModDocumentos = (() => {
     }
   }
 
-  function _parserTags(texto, cliente, assoc) {
+  function _parserTags(texto, cliente, assoc, pct) {
     let result = texto;
 
     const dict = {
@@ -172,6 +176,7 @@ const ModDocumentos = (() => {
       '{{TIPO_LIGACAO}}': cliente.tipo_ligacao ? cliente.tipo_ligacao.toUpperCase() : 'MONOFASICO',
       '{{CONSUMO_MEDIO}}': (cliente.consumo_medio || 0).toString(),
       '{{COTA}}': (cliente.cota_kwp || 0).toString(),
+      '{{PORCENTAGEM_RATEIO}}': pct.toString(),
       '{{DATA_HOJE}}': new Date().toLocaleDateString('pt-BR'),
       '{{ASSOC_NOME}}': assoc.nome || 'Associação Ibiapaba Solar',
       '{{ASSOC_CNPJ}}': assoc.cnpj || '00.000.000/0001-00',

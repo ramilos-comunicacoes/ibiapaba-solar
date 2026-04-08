@@ -98,30 +98,23 @@ const ModClientes = (() => {
     f.elements['rg'].value            = c.rg || '';
     f.elements['telefone'].value      = c.telefone || '';
     f.elements['email'].value         = c.email || '';
-    f.elements['endereco'].value      = c.endereco || '';
     f.elements['tipo_ligacao'].value  = c.tipo_ligacao || 'monofasico';
     f.elements['consumo_medio'].value = c.consumo_medio || '';
     f.elements['cota_kwp'].value      = c.cota_kwp || '';
     f.elements['status'].value        = c.status || 'ativo';
-    f.elements['data_adesao'].value   = c.data_adesao || '';
-    f.elements['observacoes'].value   = c.observacoes || '';
   }
 
   async function salvar() {
     const f = document.getElementById('form-cliente');
     const data = {
       nome:          f.elements['nome'].value.trim(),
-      cpf:           f.elements['cpf'].value.trim(),
-      rg:            f.elements['rg'].value.trim(),
+      cpf:           f.elements['cpf'].value.trim() || null,
       telefone:      f.elements['telefone'].value.trim(),
       email:         f.elements['email'].value.trim(),
-      endereco:      f.elements['endereco'].value.trim(),
       tipo_ligacao:  f.elements['tipo_ligacao'].value,
       consumo_medio: parseFloat(f.elements['consumo_medio'].value) || 0,
       cota_kwp:      parseFloat(f.elements['cota_kwp'].value) || 0,
-      status:        f.elements['status'].value,
-      data_adesao:   f.elements['data_adesao'].value,
-      observacoes:   f.elements['observacoes'].value.trim(),
+      status:        f.elements['status'].value
     };
 
     if (!data.nome) { App.toast('Nome é obrigatório.', 'error'); return; }

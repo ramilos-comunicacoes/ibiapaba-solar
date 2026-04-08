@@ -824,7 +824,7 @@
                 <div>
                   <strong>Fórmula Fixada (Estatuto):</strong><br/>
                   ValorContribuição = (C<sub>mc</sub> – C<sub>gd</sub>) × <strong>0,80</strong><br/>
-                  Custo mínimo: mono=30kWh · bi=50kWh · tri=100kWh
+                  <small>Custo mínimo: mono=30kWh · bi=50kWh · tri=100kWh</small>
                 </div>
               </div>
 
@@ -836,6 +836,86 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <!-- ============================================================
+         PÁGINA: DOCUMENTOS (PROPOSTAS E CONTRATOS)
+         ============================================================ -->
+    <section id="page-documentos" class="page">
+      
+      <div class="tabs" style="margin-bottom:20px;">
+        <button class="btn btn-primary" id="tab-btn-gerar" onclick="ModDocumentos.alternarAba('gerar')">Gerar Documentos</button>
+        <button class="btn btn-outline" id="tab-btn-editar" onclick="ModDocumentos.alternarAba('editar')">Editar Textos & Associação</button>
+      </div>
+
+      <!-- Aba: Gerar Documentos -->
+      <div id="doc-aba-gerar">
+        <div class="card" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom:16px;">Gerar Novo Arquivo (PDF)</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Selecione o Cliente</label>
+              <select id="doc-cliente-select">
+                <option value="">Carregando clientes...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tipo de Documento</label>
+              <select id="doc-tipo">
+                <option value="proposta">Proposta Comercial</option>
+                <option value="contrato">Contrato Associativo</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="ModDocumentos.gerarDocumento()">📄 Gerar Modelo em PDF</button>
+        </div>
+      </div>
+
+      <!-- Aba: Editar Textos -->
+      <div id="doc-aba-editar" style="display:none;">
+        <div class="card" style="margin-bottom: 24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3>Dados da Associação (Estatuto)</h3>
+            <button class="btn btn-primary btn-sm" onclick="ModDocumentos.salvarConfig()">💾 Salvar Tudo</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Razão Social da Associação</label>
+              <input type="text" id="doc-assoc-nome" placeholder="Ex: Associação Ibiapaba Solar" />
+            </div>
+            <div class="form-group">
+              <label>CNPJ</label>
+              <input type="text" id="doc-assoc-cnpj" placeholder="00.000.000/0001-00" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Endereço e Contatos</label>
+            <textarea id="doc-assoc-endereco" rows="2" placeholder="Rua Central, nº 100 - Ceará..."></textarea>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom:8px;">Modelo: Proposta Comercial</h3>
+          <p class="text-muted text-sm" style="margin-bottom:16px;">
+            Variáveis permitidas: <strong>{{NOME}}</strong>, <strong>{{CPF}}</strong>, <strong>{{EMAIL}}</strong>, <strong>{{TELEFONE}}</strong>, <strong>{{TIPO_LIGACAO}}</strong>, <strong>{{COTA}}</strong>, <strong>{{PORCENTAGEM_RATEIO}}</strong>, <strong>{{DATA_HOJE}}</strong>, <strong>{{ASSOC_NOME}}</strong>, <strong>{{ASSOC_CNPJ}}</strong>, <strong>{{ASSOC_ENDERECO}}</strong>.
+          </p>
+          <div class="form-group">
+            <textarea id="doc-texto-proposta" rows="12" style="font-family:monospace; line-height:1.5; font-size:13px;"></textarea>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom:8px;">Modelo: Contrato Associativo</h3>
+          <p class="text-muted text-sm" style="margin-bottom:16px;">
+            As mesmas variáveis do quadro acima são válidas. Utilize tags HTML para formatar (Ex: <code>&lt;b&gt;negrito&lt;/b&gt;</code>, <code>&lt;br&gt;</code>).
+          </p>
+          <div class="form-group">
+            <textarea id="doc-texto-contrato" rows="20" style="font-family:monospace; line-height:1.5; font-size:13px;"></textarea>
+          </div>
+        </div>
+      </div>
+
+    </section>
 
   </div><!-- /page-content -->
 </div><!-- /main-content -->
@@ -865,27 +945,13 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>RG</label>
-            <input name="rg" type="text" placeholder="Documento de identidade" />
-          </div>
-          <div class="form-group">
             <label>Telefone</label>
             <input name="telefone" type="text" placeholder="(88) 99999-9999" />
           </div>
-        </div>
-        <div class="form-row">
           <div class="form-group">
             <label>E-mail</label>
             <input name="email" type="email" placeholder="email@exemplo.com" />
           </div>
-          <div class="form-group">
-            <label>Data de Adesão</label>
-            <input name="data_adesao" type="date" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Endereço</label>
-          <input name="endereco" type="text" placeholder="Rua, número, bairro, cidade" />
         </div>
         <div class="form-row-3">
           <div class="form-group">
@@ -906,7 +972,7 @@
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group" style="width:100%">
             <label>Status</label>
             <select name="status">
               <option value="ativo">Ativo</option>
@@ -914,10 +980,6 @@
               <option value="inadimplente">Inadimplente</option>
               <option value="inativo">Inativo</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label>Observações</label>
-            <input name="observacoes" type="text" placeholder="Anotações opcionais" />
           </div>
         </div>
       </div>
