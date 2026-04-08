@@ -396,28 +396,45 @@
                 <div class="form-group">
                   <label>Consumo Mensal (kWh) <span class="required">*</span></label>
                   <div class="input-group">
-                    <input type="number" id="sim-consumo" placeholder="Ex: 350" min="1" />
+                    <input type="number" id="sim-consumo" placeholder="Ex: 350" min="1"
+                      oninput="ModSimulador.autoPreencherConta()" />
                     <div class="input-addon">kWh</div>
                   </div>
                 </div>
 
                 <div class="form-group">
-                  <label>Valor da Conta Atual (R$) <span class="required">*</span></label>
+                  <label>
+                    Valor da Conta Atual (R$)
+                    <span id="sim-auto-badge" style="font-size:10px; background:var(--primary); color:white; padding:2px 6px; border-radius:8px; margin-left:6px; display:none">⚡ Auto ENEL-CE</span>
+                  </label>
                   <div class="input-prefix">
                     <span>R$</span>
-                    <input type="number" id="sim-conta" placeholder="Ex: 320.00" step="0.01" min="1" />
+                    <input type="number" id="sim-conta" placeholder="Calculado automaticamente" step="0.01" min="1"
+                      oninput="ModSimulador.onContaManual()" />
                   </div>
+                  <div class="form-hint">Preenchido automaticamente ao informar kWh + tipo. Ou insira manualmente.</div>
+                </div>
+
+                <div class="form-group">
+                  <label>🚩 Bandeira Tarifária</label>
+                  <select id="sim-bandeira" onchange="ModSimulador.autoPreencherConta()">
+                    <option value="verde">🟢 Verde – Sem adicional</option>
+                    <option value="amarela">🟡 Amarela – +R$ 0,023/kWh</option>
+                    <option value="vermelha1">🔴 Vermelha I – +R$ 0,046/kWh</option>
+                    <option value="vermelha2">🔴 Vermelha II – +R$ 0,098/kWh</option>
+                  </select>
                 </div>
 
                 <div class="form-group">
                   <label>Tipo de Ligação <span class="required">*</span></label>
-                  <select id="sim-tipo">
+                  <select id="sim-tipo" onchange="ModSimulador.autoPreencherConta()">
                     <option value="">Selecione</option>
                     <option value="monofasico">Monofásico (mín. 30 kWh)</option>
                     <option value="bifasico">Bifásico (mín. 50 kWh)</option>
                     <option value="trifasico">Trifásico (mín. 100 kWh)</option>
                   </select>
                 </div>
+                <div id="sim-tarifa-detalhe"></div>
 
                 <div class="form-group">
                   <label>Fator de Perda Técnica: <strong id="sim-perda-label">10%</strong></label>
@@ -942,37 +959,71 @@
 
 <!-- Modal: Registrar Consumo do Cliente (para rateio) -->
 <div class="modal-overlay" id="modal-consumo">
-  <div class="modal">
+  <div class="modal modal-lg">
     <div class="modal-header">
       <h3>📝 Registrar Consumo</h3>
       <button class="modal-close" onclick="ModRateio.fecharConsumo()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="alert alert-info" style="margin-bottom:16px">
-        <span class="alert-icon">ℹ️</span>
-        Informe o consumo real do mês para cada cliente antes de processar o rateio.
+
+      <!-- Seletor de bandeira + localização -->
+      <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:flex-end">
+        <div class="form-group" style="margin:0; flex:1; min-width:180px">
+          <label>🚩 Bandeira Tarifária ANEEL</label>
+          <select id="cons-bandeira" onchange="ModRateio.onBandeiraChange(this.value)">
+            <option value="verde">🟢 Verde – Sem adicional</option>
+            <option value="amarela">🟡 Amarela – +R$ 0,023/kWh</option>
+            <option value="vermelha1">🔴 Vermelha I – +R$ 0,046/kWh</option>
+            <option value="vermelha2">🔴 Vermelha II – +R$ 0,098/kWh</option>
+          </select>
+          <div class="form-hint"><a href="https://www.aneel.gov.br/bandeiras-tarifarias" target="_blank" style="color:var(--primary)">Ver bandeira atual no site ANEEL →</a></div>
+        </div>
+        <div>
+          <label style="display:block; margin-bottom:6px">📍 Município (CIP)</label>
+          <div style="display:flex; gap:6px">
+            <input type="text" id="cons-municipio" placeholder="Ex: Tianguá" style="width:160px" oninput="ModRateio.onMunicipioChange()" />
+            <button type="button" class="btn btn-outline btn-sm" onclick="ModRateio.detectarLocal()" title="Detectar pelo GPS">📡 GPS</button>
+          </div>
+          <div class="form-hint" id="cons-local-status">CIP calculada por município</div>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Cliente <span class="required">*</span></label>
-        <select id="cons-cliente"></select>
-      </div>
-      <div class="form-group">
-        <label>Mês <span class="required">*</span></label>
-        <input type="month" id="cons-mes" />
-      </div>
+
       <div class="form-row">
         <div class="form-group">
-          <label>Consumo (kWh) <span class="required">*</span></label>
-          <input type="number" id="cons-kwh" placeholder="Ex: 350" min="0" />
+          <label>Cliente <span class="required">*</span></label>
+          <select id="cons-cliente" onchange="ModRateio.onClienteChange()"></select>
         </div>
         <div class="form-group">
-          <label>Valor da Conta (R$)</label>
-          <div class="input-prefix">
-            <span>R$</span>
-            <input type="number" id="cons-conta" placeholder="320.00" step="0.01" />
-          </div>
+          <label>Mês <span class="required">*</span></label>
+          <input type="month" id="cons-mes" />
         </div>
       </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Consumo Real (kWh) <span class="required">*</span></label>
+          <div class="input-group">
+            <input type="number" id="cons-kwh" placeholder="Ex: 350" min="0"
+              oninput="ModRateio.autoCalcularConta()" />
+            <div class="input-addon">kWh</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>
+            Valor da Conta (R$)
+            <span id="cons-auto-badge" style="font-size:10px; background:var(--primary); color:white; padding:2px 6px; border-radius:8px; margin-left:6px; display:none">⚡ Auto ENEL-CE</span>
+          </label>
+          <div class="input-prefix">
+            <span>R$</span>
+            <input type="number" id="cons-conta" placeholder="Calculado automaticamente" step="0.01" />
+          </div>
+          <div class="form-hint">Preenchido automaticamente pela tarifa ENEL-CE. Você pode editar.</div>
+        </div>
+      </div>
+
+      <!-- Detalhamento automático -->
+      <div id="cons-detalhes"></div>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="ModRateio.fecharConsumo()">Cancelar</button>
@@ -1030,6 +1081,7 @@
      SCRIPTS
      ============================================================ -->
 <script src="js/db.js"></script>
+<script src="js/tarifas.js"></script>
 <script src="js/clientes.js"></script>
 <script src="js/simulador.js"></script>
 <script src="js/usina_rateio.js"></script>

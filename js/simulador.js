@@ -5,13 +5,17 @@
  * Fórmulas:
  *   ValorContribuição = (Cmc - Cgd) × 0.8
  *   EnergiaCliente = (ConsumoCliente / ConsumoTotal) × GeraçãoUsina
+ *
+ * Integração ENEL-CE: preenche automaticamente o valor da conta
+ * com base nas tarifas vigentes (módulo Tarifas).
  */
 
 const ModSimulador = (() => {
 
   const MINIMO_KWH = { monofasico: 30, bifasico: 50, trifasico: 100 };
 
-  let _resultado = null;
+  let _resultado   = null;
+  let _contaManual = false; // true quando o usuário digitou à mão
 
   /* ── Render ─────────────────────────────────────────────── */
   async function render() {
@@ -23,6 +27,12 @@ const ModSimulador = (() => {
     document.getElementById('sim-fator-perda').value =
       Math.round((config.fator_perda || 0.10) * 100);
     _updatePerdaLabel();
+
+    // Restaura bandeira salva
+    const bandeiraEl = document.getElementById('sim-bandeira');
+    if (bandeiraEl && Tarifas) {
+      bandeiraEl.value = Tarifas.getBandeira();
+    }
   }
 
   async function _loadConfig() {
@@ -41,6 +51,31 @@ const ModSimulador = (() => {
   function _updatePerdaLabel() {
     const v = document.getElementById('sim-fator-perda').value;
     document.getElementById('sim-perda-label').textContent = `${v}%`;
+  }
+
+  /* ── AUTO-CÁLCULO DA CONTA (ENEL-CE) ───────────────────── */
+  function autoPreencherConta() {
+    if (_contaManual) return; // respeita edição manual
+    const kwh  = parseFloat(document.getElementById('sim-consumo').value);
+    const tipo = document.getElementById('sim-tipo').value;
+    const band = document.getElementById('sim-bandeira')?.value || 'verde';
+    if (!kwh || kwh <= 0 || !tipo) {
+      document.getElementById('sim-tarifa-detalhe').innerHTML = '';
+      return;
+    }
+    const result = Tarifas.calcularConta(kwh, tipo, Tarifas.getMunicipioDetectado(), band);
+    document.getElementById('sim-conta').value = result.total.toFixed(2);
+    const badge = document.getElementById('sim-auto-badge');
+    if (badge) badge.style.display = 'inline';
+    Tarifas.renderDetalhesConta(result, 'sim-tarifa-detalhe');
+    Tarifas.setBandeira(band);
+  }
+
+  function onContaManual() {
+    _contaManual = true;
+    const badge = document.getElementById('sim-auto-badge');
+    if (badge) badge.style.display = 'none';
+    document.getElementById('sim-tarifa-detalhe').innerHTML = '';
   }
 
   /* ── CÁLCULO PRINCIPAL ──────────────────────────────────── */
@@ -152,8 +187,12 @@ const ModSimulador = (() => {
   function limpar() {
     document.getElementById('form-simulador').reset();
     document.getElementById('sim-resultado').style.display = 'none';
-    _resultado = null;
+    _resultado   = null;
+    _contaManual = false;
     document.getElementById('sim-alertas').innerHTML = '';
+    document.getElementById('sim-tarifa-detalhe').innerHTML = '';
+    const badge = document.getElementById('sim-auto-badge');
+    if (badge) badge.style.display = 'none';
     _updatePerdaLabel();
   }
 
@@ -207,7 +246,7 @@ Valores reais podem variar conforme geração da usina e tarifas da concessioná
     return { monofasico: 'Monofásico', bifasico: 'Bifásico', trifasico: 'Trifásico' }[t] || t;
   }
 
-  return { render, calcular, limpar, exportarResultado, _updatePerdaLabel };
+  return { render, calcular, limpar, exportarResultado, _updatePerdaLabel, autoPreencherConta, onContaManual };
 })();
 
 window.ModSimulador = ModSimulador;

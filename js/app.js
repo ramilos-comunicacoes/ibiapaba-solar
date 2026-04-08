@@ -234,6 +234,9 @@ const App = (() => {
     await DB.openDB();
     await DB.seedDemoData();
 
+    // Inicializa módulo de tarifas ENEL-CE
+    if (typeof Tarifas !== 'undefined') await Tarifas.init();
+
     // Configura navegação
     document.querySelectorAll('.nav-item[data-page]').forEach(el => {
       el.addEventListener('click', () => navegar(el.dataset.page));

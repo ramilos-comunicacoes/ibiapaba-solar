@@ -329,20 +329,115 @@ const ModRateio = (() => {
   }
 
   function _estimarTarifa(cliente) {
-    // Tarifa estimada Ceará (ENEL): ~R$ 0,85-0,95/kWh
-    return 0.90;
+    // Usa módulo Tarifas ENEL-CE se disponível
+    if (typeof Tarifas !== 'undefined') {
+      const res = Tarifas.calcularConta(
+        cliente.consumo_medio || 300,
+        cliente.tipo_ligacao || 'monofasico',
+        Tarifas.getMunicipioDetectado(),
+        Tarifas.getBandeira()
+      );
+      const kwh = Math.max(cliente.consumo_medio || 300, Tarifas.getMinimo(cliente.tipo_ligacao));
+      return res.total / kwh;
+    }
+    return 0.90; // fallback
   }
+
+  /* ── Auto-cálculo da conta via Tarifas ENEL-CE ─────────── */
+  let _clientes_cache = [];
 
   async function registrarConsumo() {
     const modal = document.getElementById('modal-consumo');
-    // Popula select de clientes
-    const clientes = await DB.getAll(DB.STORES.CLIENTES);
+    _clientes_cache = await DB.getAll(DB.STORES.CLIENTES);
     const sel = document.getElementById('cons-cliente');
     sel.innerHTML = '<option value="">Selecione o cliente</option>' +
-      clientes.filter(c => c.status === 'ativo').map(c =>
-        `<option value="${c.id}">${c.nome}</option>`).join('');
+      _clientes_cache.filter(c => c.status === 'ativo').map(c =>
+        `<option value="${c.id}" data-tipo="${c.tipo_ligacao}">${c.nome}</option>`).join('');
+
     document.getElementById('cons-mes').value = _getMesAtual();
+    document.getElementById('cons-kwh').value = '';
+    document.getElementById('cons-conta').value = '';
+    document.getElementById('cons-detalhes').innerHTML = '';
+    document.getElementById('cons-auto-badge').style.display = 'none';
+    document.getElementById('cons-local-status').textContent = 'CIP calculada por município';
+
+    // Restaura bandeira salva
+    const bandEl = document.getElementById('cons-bandeira');
+    if (bandEl && typeof Tarifas !== 'undefined') bandEl.value = Tarifas.getBandeira();
+
+    // Restaura município detectado
+    const munEl = document.getElementById('cons-municipio');
+    if (munEl && typeof Tarifas !== 'undefined' && Tarifas.getMunicipioDetectado()) {
+      munEl.value = Tarifas.getMunicipioDetectado();
+      document.getElementById('cons-local-status').textContent =
+        `📍 ${Tarifas.getMunicipioDetectado()} – CIP: R$ ${Tarifas.getCIP(Tarifas.getMunicipioDetectado()).toFixed(2)}/mês`;
+    }
+
     modal.classList.add('open');
+  }
+
+  function autoCalcularConta() {
+    if (typeof Tarifas === 'undefined') return;
+    const kwh     = parseFloat(document.getElementById('cons-kwh').value);
+    const cliId   = parseInt(document.getElementById('cons-cliente').value);
+    const bandeira = document.getElementById('cons-bandeira')?.value || 'verde';
+    const municipio = document.getElementById('cons-municipio')?.value || '';
+
+    if (!kwh || kwh <= 0) {
+      document.getElementById('cons-conta').value = '';
+      document.getElementById('cons-detalhes').innerHTML = '';
+      document.getElementById('cons-auto-badge').style.display = 'none';
+      return;
+    }
+
+    // Detecta tipo de ligação do cliente selecionado
+    const cli = _clientes_cache.find(c => c.id === cliId);
+    const tipo = cli?.tipo_ligacao || 'monofasico';
+
+    const result = Tarifas.calcularConta(kwh, tipo, municipio || Tarifas.getMunicipioDetectado(), bandeira);
+    document.getElementById('cons-conta').value = result.total.toFixed(2);
+    document.getElementById('cons-auto-badge').style.display = 'inline';
+    Tarifas.renderDetalhesConta(result, 'cons-detalhes');
+  }
+
+  function onClienteChange() {
+    autoCalcularConta(); // recalcula quando muda o cliente (muda tipo de ligação)
+  }
+
+  function onBandeiraChange(val) {
+    if (typeof Tarifas !== 'undefined') Tarifas.setBandeira(val);
+    autoCalcularConta();
+  }
+
+  function onMunicipioChange() {
+    const mun = document.getElementById('cons-municipio')?.value || '';
+    if (typeof Tarifas !== 'undefined') {
+      Tarifas.setMunicipio(mun || null);
+      if (mun) {
+        const cip = Tarifas.getCIP(mun);
+        document.getElementById('cons-local-status').textContent =
+          `📍 ${mun} – CIP estimada: R$ ${cip.toFixed(2)}/mês`;
+      }
+    }
+    autoCalcularConta();
+  }
+
+  function detectarLocal() {
+    const statusEl = document.getElementById('cons-local-status');
+    statusEl.textContent = '📡 Detectando localização...';
+    if (typeof Tarifas === 'undefined') { statusEl.textContent = 'Módulo de tarifas não carregado.'; return; }
+
+    Tarifas.detectarMunicipio(
+      (municipio) => {
+        document.getElementById('cons-municipio').value = municipio;
+        const cip = Tarifas.getCIP(municipio);
+        statusEl.textContent = `✅ ${municipio} detectado – CIP: R$ ${cip.toFixed(2)}/mês`;
+        autoCalcularConta();
+      },
+      (erro) => {
+        statusEl.textContent = `⚠️ ${erro} – insira o município manualmente.`;
+      }
+    );
   }
 
   function fecharConsumo() {
@@ -359,7 +454,6 @@ const ModRateio = (() => {
       App.toast('Preencha todos os campos obrigatórios.', 'warning'); return;
     }
 
-    // Verifica se já existe registro
     const existentes = await DB.getByIndex(DB.STORES.CONSUMO, 'cliente_id', cliId);
     const existente  = existentes.find(x => x.mes_ano === mes);
 
@@ -371,11 +465,12 @@ const ModRateio = (() => {
       await DB.add(DB.STORES.CONSUMO, { cliente_id: cliId, mes_ano: mes, consumo_kwh: kwh, valor_conta: conta });
     }
 
-    App.toast('Consumo registrado!', 'success');
+    App.toast('✅ Consumo registrado com tarifa ENEL-CE!', 'success');
     fecharConsumo();
   }
 
-  return { render, processarMes, registrarConsumo, fecharConsumo, salvarConsumo };
+  return { render, processarMes, registrarConsumo, fecharConsumo, salvarConsumo,
+           autoCalcularConta, detectarLocal, onClienteChange, onBandeiraChange, onMunicipioChange };
 })();
 
 window.ModRateio = ModRateio;
