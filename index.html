@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="IBIAPABA SOLAR – Sistema de Gestão para Associação de Energia Solar. Geração distribuída compartilhada conforme Lei 14.300/2022." />
+  <title>IBIAPABA SOLAR – Sistema de Gestão</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ============================================================
+     SIDEBAR
+     ============================================================ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">☀️</div>
+    <div class="logo-text">
+      <h1>IBIAPABA SOLAR</h1>
+      <p>Gestão Energética</p>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Principal</span>
+    <div class="nav-item active" data-page="dashboard">
+      <span class="nav-icon">🏠</span> Dashboard
+    </div>
+    <div class="nav-item" data-page="simulador">
+      <span class="nav-icon">🧮</span> Simulador
+    </div>
+
+    <span class="nav-section-label">Operacional</span>
+    <div class="nav-item" data-page="clientes">
+      <span class="nav-icon">👥</span> Clientes
+    </div>
+    <div class="nav-item" data-page="usina">
+      <span class="nav-icon">⚡</span> Usina
+    </div>
+    <div class="nav-item" data-page="rateio">
+      <span class="nav-icon">⚖️</span> Rateio
+    </div>
+
+    <span class="nav-section-label">Financeiro</span>
+    <div class="nav-item" data-page="financeiro">
+      <span class="nav-icon">💰</span> Financeiro
+    </div>
+
+    <span class="nav-section-label">Sistema</span>
+    <div class="nav-item" data-page="backup">
+      <span class="nav-icon">🔒</span> Backup & Config
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <p>Lei <span>14.300/2022</span> · SCEE</p>
+    <p style="margin-top:4px">v1.0 · Ceará</p>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="App.closeSidebar()"></div>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <button class="topbar-menu-btn" onclick="App.toggleSidebar()">☰</button>
+    <div class="topbar-title">
+      <h2 id="topbar-titulo">Dashboard</h2>
+      <p id="topbar-subtitulo">Visão geral do sistema</p>
+    </div>
+    <div class="topbar-actions">
+      <div class="date-badge" id="date-badge"></div>
+      <button class="topbar-btn" onclick="ModBackup.exportar()" title="Exportar backup">💾 Backup</button>
+    </div>
+  </header>
+
+  <div class="page-content">
+
+    <!-- =========================================================
+         PAGE: DASHBOARD
+         ========================================================= -->
+    <div class="page active" id="page-dashboard">
+
+      <!-- KPI Cards -->
+      <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))">
+
+        <div class="stat-card" id="kpi-clientes">
+          <div class="stat-card-header">
+            <div class="stat-icon green">👥</div>
+            <span class="stat-change neutral">Total</span>
+          </div>
+          <div class="stat-value kpi-val">—</div>
+          <div class="stat-label kpi-lbl">Clientes Associados</div>
+        </div>
+
+        <div class="stat-card" id="kpi-geracao">
+          <div class="stat-card-header">
+            <div class="stat-icon orange">⚡</div>
+            <span class="stat-change up">Mês</span>
+          </div>
+          <div class="stat-value kpi-val" style="font-size:20px">—</div>
+          <div class="stat-label kpi-lbl">Geração da Usina</div>
+        </div>
+
+        <div class="stat-card" id="kpi-receita">
+          <div class="stat-card-header">
+            <div class="stat-icon green">💰</div>
+            <span class="stat-change up">Mês</span>
+          </div>
+          <div class="stat-value kpi-val" style="font-size:20px">—</div>
+          <div class="stat-label kpi-lbl">Receita da Associação</div>
+        </div>
+
+        <div class="stat-card" id="kpi-economia">
+          <div class="stat-card-header">
+            <div class="stat-icon blue">📉</div>
+            <span class="stat-change up">Mês</span>
+          </div>
+          <div class="stat-value kpi-val" style="font-size:20px">—</div>
+          <div class="stat-label kpi-lbl">Economia Clientes</div>
+        </div>
+
+      </div>
+
+      <!-- Alertas + Gráfico -->
+      <div class="grid-2" style="margin-bottom:24px">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🔔 Alertas Inteligentes</div>
+              <div class="card-subtitle">Monitoramento automático do sistema</div>
+            </div>
+          </div>
+          <div class="card-body" id="dash-alertas"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📊 Geração Mensal (kWh)</div>
+              <div class="card-subtitle">Real vs. Estimado</div>
+            </div>
+          </div>
+          <div class="card-body" id="dash-grafico"></div>
+        </div>
+      </div>
+
+      <!-- Últimos clientes -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">👥 Clientes Recentes</div>
+            <div class="card-subtitle">Últimos associados cadastrados</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="App.navegar('clientes')">Ver todos →</button>
+        </div>
+        <div class="card-body" style="padding-top:0">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Nome</th><th>Tipo</th><th>Consumo Médio</th><th>Status</th></tr></thead>
+              <tbody id="dash-clientes-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fórmulas legais -->
+      <div class="card" style="margin-top:20px; border-left:4px solid var(--primary)">
+        <div class="card-body" style="display:flex; gap:32px; flex-wrap:wrap">
+          <div>
+            <div class="text-xs text-muted font-bold" style="text-transform:uppercase; letter-spacing:.05em">⚖️ Fórmula Financeira (Estatuto)</div>
+            <div style="margin-top:8px; font-size:15px; font-weight:700; color:var(--primary)">
+              ValorContribuição = (C<sub>mc</sub> – C<sub>gd</sub>) × 0,80
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-muted font-bold" style="text-transform:uppercase; letter-spacing:.05em">⚡ Fórmula de Rateio (Estatuto)</div>
+            <div style="margin-top:8px; font-size:15px; font-weight:700; color:var(--accent)">
+              E<sub>cliente</sub> = (C<sub>cliente</sub> / C<sub>total</sub>) × G<sub>usina</sub>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-muted font-bold" style="text-transform:uppercase; letter-spacing:.05em">🛡️ Base Legal</div>
+            <div style="margin-top:8px; font-size:13px; color:var(--gray-600)">Lei 14.300/2022 · ANEEL · SCEE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         PAGE: CLIENTES
+         ========================================================= -->
+    <div class="page" id="page-clientes">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon green">👥</div>
+          <div class="stat-value" id="cli-total">—</div>
+          <div class="stat-label">Total de Clientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div class="stat-value" id="cli-ativos">—</div>
+          <div class="stat-label">Ativos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">⚠️</div>
+          <div class="stat-value" id="cli-inad">—</div>
+          <div class="stat-label">Inadimplentes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">⚡</div>
+          <div class="stat-value" style="font-size:18px" id="cli-consumo">—</div>
+          <div class="stat-label">Consumo Total Médio</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">👥 Associados</div>
+            <div class="card-subtitle">Gerenciar clientes da associação</div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <div class="search-bar">
+              <span>🔍</span>
+              <input type="text" placeholder="Buscar por nome, CPF…" oninput="ModClientes.onSearch(this.value)" />
+            </div>
+            <button class="btn btn-primary" onclick="ModClientes.abrirModal()">➕ Novo Cliente</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding-top:12px">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr>
+                <th>Nome</th><th>CPF</th><th>Tipo</th>
+                <th>Consumo Médio</th><th>Cota (kWp)</th><th>Status</th><th>Ações</th>
+              </tr></thead>
+              <tbody id="cli-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         PAGE: USINA
+         ========================================================= -->
+    <div class="page" id="page-usina">
+      <div class="stats-grid" style="grid-template-columns: repeat(3,1fr); margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon orange">⚡</div>
+          <div class="stat-value" style="font-size:20px" id="usina-ger-mes">—</div>
+          <div class="stat-label">Geração Último Mês</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">📈</div>
+          <div class="stat-value" id="usina-perf">—</div>
+          <div class="stat-label">Performance</div>
+          <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" id="usina-perf-bar" style="width:0%"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">🔋</div>
+          <div class="stat-value" style="font-size:20px" id="usina-total-ano">—</div>
+          <div class="stat-label">Total Registrado</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 Geração por Mês</div>
+          </div>
+          <div class="card-body" id="usina-grafico"></div>
+        </div>
+        <div class="card" style="border-left:4px solid var(--accent)">
+          <div class="card-header"><div class="card-title">🌞 Info da Usina</div></div>
+          <div class="card-body">
+            <div class="kpi-row">
+              <div class="kpi-item"><div class="kpi-val" style="color:var(--primary)">300 kWp</div><div class="kpi-lbl">Capacidade Instalada</div></div>
+              <div class="kpi-item"><div class="kpi-val" style="color:var(--accent)">38.000</div><div class="kpi-lbl">Estimativa Mensal (kWh)</div></div>
+            </div>
+            <div class="alert alert-info" style="margin-top:8px">
+              <span class="alert-icon">ℹ️</span>
+              Fator de perda técnica configurável em Backup &amp; Config. Padrão: 10%.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">⚡ Registros de Geração</div>
+            <div class="card-subtitle">Histórico mensal da usina</div>
+          </div>
+          <button class="btn btn-primary" onclick="ModUsina.abrirModal()">➕ Registrar Geração</button>
+        </div>
+        <div class="card-body" style="padding-top:12px">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Mês</th><th>Geração Real</th><th>Estimada</th><th>Performance</th><th>Irradiação</th><th>Ações</th></tr></thead>
+              <tbody id="usina-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         PAGE: RATEIO
+         ========================================================= -->
+    <div class="page" id="page-rateio">
+      <div class="alert alert-info" style="margin-bottom:20px">
+        <span class="alert-icon">⚡</span>
+        <div>
+          <strong>Rateio Inteligente:</strong> Selecione o mês, registre os consumos individuais e clique em "Processar Rateio".
+          A distribuição segue o estatuto: <em>E<sub>cliente</sub> = (C<sub>cliente</sub> / C<sub>total</sub>) × G<sub>usina</sub></em>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-body" style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap">
+          <div class="form-group" style="margin:0; flex:1; min-width:180px">
+            <label>Mês de Referência</label>
+            <input type="month" id="rateio-mes" onchange="ModRateio.render()" />
+          </div>
+          <button class="btn btn-primary btn-lg" onclick="ModRateio.processarMes()">⚡ Processar Rateio</button>
+          <button class="btn btn-outline" onclick="ModRateio.registrarConsumo()">📝 Registrar Consumo</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon orange">⚡</div>
+          <div class="stat-value" style="font-size:18px" id="rat-energia">—</div>
+          <div class="stat-label">Energia Distribuída</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">💰</div>
+          <div class="stat-value" style="font-size:18px" id="rat-contrib">—</div>
+          <div class="stat-label">Total Contribuições</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">📉</div>
+          <div class="stat-value" style="font-size:18px" id="rat-eco">—</div>
+          <div class="stat-label">Economia Líquida</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">👥</div>
+          <div class="stat-value" id="rat-clientes">—</div>
+          <div class="stat-label">Clientes Rateados</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⚖️ Distribuição do Mês</div>
+        </div>
+        <div class="card-body" style="padding-top:12px">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr>
+                <th>Cliente</th><th>Consumo</th><th>Participação</th>
+                <th>Energia Alocada</th><th>Conta (Cmc)</th><th>Conta c/GD (Cgd)</th>
+                <th>Contribuição</th><th>Eco. Líquida</th>
+              </tr></thead>
+              <tbody id="rateio-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         PAGE: SIMULADOR
+         ========================================================= -->
+    <div class="page" id="page-simulador">
+
+      <div class="grid-2">
+        <!-- Formulário -->
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-header">
+              <div>
+                <div class="card-title">🧮 Simulador Profissional</div>
+                <div class="card-subtitle">Projeção com margem de segurança – Lei 14.300/2022</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <form id="form-simulador" onsubmit="event.preventDefault(); ModSimulador.calcular()">
+
+                <div class="form-group">
+                  <label>Consumo Mensal (kWh) <span class="required">*</span></label>
+                  <div class="input-group">
+                    <input type="number" id="sim-consumo" placeholder="Ex: 350" min="1" />
+                    <div class="input-addon">kWh</div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Valor da Conta Atual (R$) <span class="required">*</span></label>
+                  <div class="input-prefix">
+                    <span>R$</span>
+                    <input type="number" id="sim-conta" placeholder="Ex: 320.00" step="0.01" min="1" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Tipo de Ligação <span class="required">*</span></label>
+                  <select id="sim-tipo">
+                    <option value="">Selecione</option>
+                    <option value="monofasico">Monofásico (mín. 30 kWh)</option>
+                    <option value="bifasico">Bifásico (mín. 50 kWh)</option>
+                    <option value="trifasico">Trifásico (mín. 100 kWh)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Fator de Perda Técnica: <strong id="sim-perda-label">10%</strong></label>
+                  <input type="range" id="sim-fator-perda" min="5" max="20" value="10"
+                    oninput="ModSimulador._updatePerdaLabel()" style="padding:6px 0; border:none; box-shadow:none; accent-color:var(--primary)" />
+                  <div class="form-hint">Padrão recomendado: 10% (ajustável de 5% a 20%)</div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px">
+                  <button type="submit" class="btn btn-primary btn-lg" style="flex:1">🧮 Calcular</button>
+                  <button type="button" class="btn btn-ghost" onclick="ModSimulador.limpar()">🔄 Limpar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Info da usina -->
+          <div class="card" style="border-left:4px solid var(--accent)">
+            <div class="card-body">
+              <div class="section-title">🏭 Capacidade da Usina</div>
+              <div class="kpi-row">
+                <div class="kpi-item">
+                  <div class="kpi-val" style="color:var(--primary)" id="sim-cap-usina">—</div>
+                  <div class="kpi-lbl">Capacidade (kWp)</div>
+                </div>
+                <div class="kpi-item">
+                  <div class="kpi-val" style="color:var(--accent); font-size:16px" id="sim-geracao-estimada">—</div>
+                  <div class="kpi-lbl">Geração Est.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resultado -->
+        <div>
+          <div id="sim-alertas"></div>
+
+          <div id="sim-resultado" style="display:none">
+            <!-- Cards resultado -->
+            <div class="sim-result-grid" style="grid-template-columns: repeat(2, 1fr)">
+              <div class="sim-card info-card">
+                <div class="sim-label">Conta Atual (Cmc)</div>
+                <div class="sim-value" id="res-conta-atual">—</div>
+                <div class="sim-sub">Mercado cativo</div>
+              </div>
+              <div class="sim-card primary-card">
+                <div class="sim-label">Conta c/ GD (Cgd)</div>
+                <div class="sim-value" id="res-conta-gd">—</div>
+                <div class="sim-sub">Com geração distribuída</div>
+              </div>
+              <div class="sim-card accent-card">
+                <div class="sim-label">Economia Bruta</div>
+                <div class="sim-value" id="res-economia-bruta">—</div>
+                <div class="sim-sub">Cmc – Cgd</div>
+              </div>
+              <div class="sim-card warning-card">
+                <div class="sim-label">Contribuição (80%)</div>
+                <div class="sim-value" id="res-contribuicao">—</div>
+                <div class="sim-sub">Pago à associação</div>
+              </div>
+              <div class="sim-card success-card" style="grid-column:span 2">
+                <div class="sim-label">💚 Economia Líquida do Cliente</div>
+                <div class="sim-value" style="font-size:28px" id="res-eco-liquida">—</div>
+                <div class="sim-sub">Após contribuição</div>
+              </div>
+            </div>
+
+            <!-- Cenários -->
+            <div class="card" style="margin-top:16px">
+              <div class="card-header"><div class="card-title">📊 Cenários Projetados</div></div>
+              <div class="card-body">
+                <div class="scenario-tabs">
+                  <div class="scenario-tab optimist active">🔵 Otimista</div>
+                  <div class="scenario-tab realist">🟢 Realista</div>
+                  <div class="scenario-tab conserv">🟡 Conservador</div>
+                </div>
+                <div class="sim-result-grid" style="grid-template-columns: repeat(3,1fr); margin-top:0">
+                  <div class="sim-card info-card">
+                    <div class="sim-label">Otimista</div>
+                    <div class="sim-value" id="cen-otimista">—</div>
+                    <div class="sim-sub">Economia máxima</div>
+                  </div>
+                  <div class="sim-card primary-card">
+                    <div class="sim-label">Realista</div>
+                    <div class="sim-value" id="cen-realista">—</div>
+                    <div class="sim-sub">–10% margem</div>
+                  </div>
+                  <div class="sim-card warning-card">
+                    <div class="sim-label">Conservador</div>
+                    <div class="sim-value" id="cen-conserv">—</div>
+                    <div class="sim-sub">–25% prudente</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Técnico -->
+            <div class="card" style="margin-top:16px">
+              <div class="card-header"><div class="card-title">🔧 Dados Técnicos</div></div>
+              <div class="card-body">
+                <div class="kpi-row" style="flex-wrap:wrap">
+                  <div class="kpi-item">
+                    <div class="kpi-val" id="res-tarifa" style="font-size:16px">—</div>
+                    <div class="kpi-lbl">Tarifa Média</div>
+                  </div>
+                  <div class="kpi-item">
+                    <div class="kpi-val" id="res-compensavel" style="font-size:16px">—</div>
+                    <div class="kpi-lbl">Energia Compensável</div>
+                  </div>
+                  <div class="kpi-item">
+                    <div class="kpi-val" id="res-pct" style="font-size:16px">—</div>
+                    <div class="kpi-lbl">% Compensado</div>
+                  </div>
+                  <div class="kpi-item">
+                    <div class="kpi-val" id="res-minimo" style="font-size:16px">—</div>
+                    <div class="kpi-lbl">Mínimo Obrigatório</div>
+                  </div>
+                </div>
+                <div class="progress-bar" style="margin-top:8px">
+                  <div class="progress-fill" id="res-barra-fill" style="width:0%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Projeção anual -->
+            <div class="card" style="margin-top:16px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color:var(--primary)">
+              <div class="card-body" style="display:flex; gap:32px; flex-wrap:wrap; justify-content:center; text-align:center">
+                <div>
+                  <div class="text-xs text-muted font-bold" style="text-transform:uppercase">Economia Líquida / Ano</div>
+                  <div style="font-size:28px; font-weight:800; color:var(--primary); margin-top:4px" id="res-eco-anual">—</div>
+                </div>
+                <div>
+                  <div class="text-xs text-muted font-bold" style="text-transform:uppercase">Contribuições / Ano</div>
+                  <div style="font-size:28px; font-weight:800; color:var(--accent); margin-top:4px" id="res-contrib-anual">—</div>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn btn-outline btn-full" style="margin-top:12px" onclick="ModSimulador.exportarResultado()">
+              📄 Exportar Relatório
+            </button>
+          </div>
+
+          <!-- Estado inicial -->
+          <div id="sim-vazio" style="display:none">
+            <div class="card">
+              <div class="empty-state">
+                <div class="empty-icon">🧮</div>
+                <h3>Preencha os dados ao lado</h3>
+                <p>Os resultados aparecerão aqui após o cálculo.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aviso legal -->
+      <div class="alert alert-warning" style="margin-top:20px">
+        <span class="alert-icon">⚖️</span>
+        <div>
+          <strong>Aviso Legal:</strong> Esta simulação é uma <em>projeção estimada</em> com margem de segurança de 10%.
+          Valores reais dependem da geração efetiva da usina, tarifas da ENEL/Ceará e consumo mensal do cliente.
+          A associação nunca promete economia fixa. Conforme Lei 14.300/2022 e normas ANEEL.
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         PAGE: FINANCEIRO
+         ========================================================= -->
+    <div class="page" id="page-financeiro">
+
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr); margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon green">💰</div>
+          <div class="stat-value" style="font-size:18px" id="fin-receita-mes">—</div>
+          <div class="stat-label">Receita do Mês</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">📈</div>
+          <div class="stat-value" style="font-size:18px" id="fin-receita-ano">—</div>
+          <div class="stat-label">Receita do Ano</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">📉</div>
+          <div class="stat-value" style="font-size:18px" id="fin-eco-clientes">—</div>
+          <div class="stat-label">Economia Clientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">👥</div>
+          <div class="stat-value" id="fin-clientes-mes">—</div>
+          <div class="stat-label">Clientes no Mês</div>
+        </div>
+      </div>
+
+      <!-- Meta -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-body">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+            <div class="card-title">🎯 Meta Mensal (R$ 20.000)</div>
+            <span class="badge badge-green" id="fin-meta-pct">0%</span>
+          </div>
+          <div class="progress-bar" style="height:12px">
+            <div class="progress-fill" id="fin-meta-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projeção histórica -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">📊 Histórico por Mês</div>
+        </div>
+        <div class="card-body" id="fin-projecao"></div>
+      </div>
+
+      <!-- Lançamentos manuais -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📝 Lançamentos</div>
+            <div class="card-subtitle">Receitas e despesas adicionais</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="ModFinanceiro.abrirLanc()">➕ Novo Lançamento</button>
+        </div>
+        <div class="card-body" style="padding-top:12px">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Ação</th></tr></thead>
+              <tbody id="fin-lanc-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         PAGE: BACKUP & CONFIG
+         ========================================================= -->
+    <div class="page" id="page-backup">
+
+      <div class="grid-2">
+
+        <!-- Backup -->
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-header">
+              <div>
+                <div class="card-title">💾 Backup de Dados</div>
+                <div class="card-subtitle">Exportação e importação segura</div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-success" style="margin-bottom:16px">
+                <span class="alert-icon">✅</span>
+                Backup automático a cada 30 minutos no localStorage do navegador.
+              </div>
+
+              <div class="section-title">📊 Estatísticas do Banco</div>
+              <div class="kpi-row" style="flex-wrap:wrap">
+                <div class="kpi-item"><div class="kpi-val" id="bk-qtd-clientes">—</div><div class="kpi-lbl">Clientes</div></div>
+                <div class="kpi-item"><div class="kpi-val" id="bk-qtd-usina">—</div><div class="kpi-lbl">Geração Reg.</div></div>
+                <div class="kpi-item"><div class="kpi-val" id="bk-qtd-rateios">—</div><div class="kpi-lbl">Rateios</div></div>
+                <div class="kpi-item"><div class="kpi-val" id="bk-qtd-fin">—</div><div class="kpi-lbl">Financeiro</div></div>
+              </div>
+              <div class="kpi-row">
+                <div class="kpi-item"><div class="kpi-val" id="bk-qtd-consumos">—</div><div class="kpi-lbl">Consumos</div></div>
+                <div class="kpi-item"><div class="kpi-val" id="bk-total-reg" style="color:var(--primary)">—</div><div class="kpi-lbl">Total Registros</div></div>
+              </div>
+              <div class="text-xs text-muted" style="margin-top:8px">Última atualização: <span id="bk-ultima-at">—</span></div>
+
+              <div class="divider"></div>
+
+              <div style="display:flex; flex-direction:column; gap:10px">
+                <button class="btn btn-primary btn-full" onclick="ModBackup.exportar()">
+                  ⬇️ Exportar Backup Completo (JSON)
+                </button>
+                <button class="btn btn-outline btn-full" onclick="ModBackup.importar()">
+                  ⬆️ Importar Backup
+                </button>
+                <input type="file" id="bk-import-file" accept=".json" style="display:none"
+                  onchange="ModBackup.onImportFile(event)" />
+                <button class="btn btn-ghost btn-full" onclick="ModBackup.resetDemo()">
+                  🔄 Carregar Dados de Demonstração
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configurações -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">⚙️ Configurações do Sistema</div>
+                <div class="card-subtitle">Parâmetros técnicos e financeiros</div>
+              </div>
+            </div>
+            <div class="card-body">
+
+              <div class="alert alert-warning" style="margin-bottom:16px">
+                <span class="alert-icon">⚠️</span>
+                Altere estes valores com cautela. Eles afetam todos os cálculos de rateio e simulação.
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Fator de Perda Técnica (%)</label>
+                  <div class="input-group">
+                    <input type="number" id="cfg-fator-perda" min="5" max="20" placeholder="10" />
+                    <div class="input-addon">%</div>
+                  </div>
+                  <div class="form-hint">Entre 5% e 20%. Padrão: 10%</div>
+                </div>
+                <div class="form-group">
+                  <label>Margem de Segurança (%)</label>
+                  <div class="input-group">
+                    <input type="number" id="cfg-margem" min="5" max="25" placeholder="10" />
+                    <div class="input-addon">%</div>
+                  </div>
+                  <div class="form-hint">Entre 5% e 25%. Padrão: 10%</div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Capacidade da Usina (kWp)</label>
+                  <div class="input-group">
+                    <input type="number" id="cfg-cap-usina" min="1" placeholder="300" />
+                    <div class="input-addon">kWp</div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Geração Média Estimada (kWh/mês)</label>
+                  <div class="input-group">
+                    <input type="number" id="cfg-ger-estimada" min="1" placeholder="38000" />
+                    <div class="input-addon">kWh</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="alert alert-info" style="margin-bottom:16px">
+                <span class="alert-icon">⚖️</span>
+                <div>
+                  <strong>Fórmula Fixada (Estatuto):</strong><br/>
+                  ValorContribuição = (C<sub>mc</sub> – C<sub>gd</sub>) × <strong>0,80</strong><br/>
+                  Custo mínimo: mono=30kWh · bi=50kWh · tri=100kWh
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-full" onclick="ModBackup.salvarConfig()">
+                💾 Salvar Configurações
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+</div><!-- /main-content -->
+
+<!-- ============================================================
+     MODAIS
+     ============================================================ -->
+
+<!-- Modal: Novo / Editar Cliente -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="modal-cliente-titulo">➕ Novo Cliente</h3>
+      <button class="modal-close" onclick="ModClientes.fecharModal()">✕</button>
+    </div>
+    <form id="form-cliente" onsubmit="event.preventDefault(); ModClientes.salvar()">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nome Completo <span class="required">*</span></label>
+            <input name="nome" type="text" placeholder="Nome do associado" required />
+          </div>
+          <div class="form-group">
+            <label>CPF</label>
+            <input name="cpf" type="text" placeholder="000.000.000-00" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>RG</label>
+            <input name="rg" type="text" placeholder="Documento de identidade" />
+          </div>
+          <div class="form-group">
+            <label>Telefone</label>
+            <input name="telefone" type="text" placeholder="(88) 99999-9999" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>E-mail</label>
+            <input name="email" type="email" placeholder="email@exemplo.com" />
+          </div>
+          <div class="form-group">
+            <label>Data de Adesão</label>
+            <input name="data_adesao" type="date" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Endereço</label>
+          <input name="endereco" type="text" placeholder="Rua, número, bairro, cidade" />
+        </div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Tipo de Ligação <span class="required">*</span></label>
+            <select name="tipo_ligacao" required>
+              <option value="monofasico">Monofásico</option>
+              <option value="bifasico">Bifásico</option>
+              <option value="trifasico">Trifásico</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Consumo Médio (kWh) <span class="required">*</span></label>
+            <input name="consumo_medio" type="number" placeholder="Ex: 350" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>Cota Contratada (kWp)</label>
+            <input name="cota_kwp" type="number" placeholder="Ex: 15" step="0.1" min="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Status</label>
+            <select name="status">
+              <option value="ativo">Ativo</option>
+              <option value="pendente">Pendente</option>
+              <option value="inadimplente">Inadimplente</option>
+              <option value="inativo">Inativo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Observações</label>
+            <input name="observacoes" type="text" placeholder="Anotações opcionais" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="ModClientes.fecharModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">💾 Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Histórico do Cliente -->
+<div class="modal-overlay" id="modal-historico">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>📊 Histórico do Cliente</h3>
+      <button class="modal-close" onclick="ModClientes.fecharHistorico()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="kpi-row" style="margin-bottom:12px">
+        <div class="kpi-item"><div class="kpi-val" id="hist-nome" style="font-size:16px">—</div><div class="kpi-lbl">Cliente</div></div>
+        <div class="kpi-item"><div class="kpi-val" id="hist-tipo" style="font-size:16px">—</div><div class="kpi-lbl">Tipo</div></div>
+        <div class="kpi-item"><div class="kpi-val" id="hist-cota" style="font-size:16px">—</div><div class="kpi-lbl">Cota</div></div>
+        <div class="kpi-item"><div id="hist-status">—</div><div class="kpi-lbl">Status</div></div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Mês</th><th>Consumo</th><th>Energia GD</th><th>Conta (Cmc)</th><th>Conta c/GD</th><th>Contribuição</th></tr></thead>
+          <tbody id="hist-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="ModClientes.fecharHistorico()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Registrar Geração da Usina -->
+<div class="modal-overlay" id="modal-geracao">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-geracao-titulo">➕ Registrar Geração</h3>
+      <button class="modal-close" onclick="ModUsina.fecharModal()">✕</button>
+    </div>
+    <form id="form-geracao" onsubmit="event.preventDefault(); ModUsina.salvar()">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Mês de Referência <span class="required">*</span></label>
+          <input type="month" id="ger-mes" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Geração Real (kWh) <span class="required">*</span></label>
+            <input type="number" id="ger-real" placeholder="Ex: 36500" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>Geração Estimada (kWh)</label>
+            <input type="number" id="ger-estimada" placeholder="38000" min="0" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Irradiação Solar (kWh/m²)</label>
+          <input type="number" id="ger-irrad" placeholder="Ex: 4.8" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Observações</label>
+          <textarea id="ger-obs" rows="2" placeholder="Manutenção, falhas, etc."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="ModUsina.fecharModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">💾 Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Registrar Consumo do Cliente (para rateio) -->
+<div class="modal-overlay" id="modal-consumo">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📝 Registrar Consumo</h3>
+      <button class="modal-close" onclick="ModRateio.fecharConsumo()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <span class="alert-icon">ℹ️</span>
+        Informe o consumo real do mês para cada cliente antes de processar o rateio.
+      </div>
+      <div class="form-group">
+        <label>Cliente <span class="required">*</span></label>
+        <select id="cons-cliente"></select>
+      </div>
+      <div class="form-group">
+        <label>Mês <span class="required">*</span></label>
+        <input type="month" id="cons-mes" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Consumo (kWh) <span class="required">*</span></label>
+          <input type="number" id="cons-kwh" placeholder="Ex: 350" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Valor da Conta (R$)</label>
+          <div class="input-prefix">
+            <span>R$</span>
+            <input type="number" id="cons-conta" placeholder="320.00" step="0.01" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="ModRateio.fecharConsumo()">Cancelar</button>
+      <button class="btn btn-primary" onclick="ModRateio.salvarConsumo()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novo Lançamento Financeiro -->
+<div class="modal-overlay" id="modal-lancamento">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>💰 Novo Lançamento</h3>
+      <button class="modal-close" onclick="ModFinanceiro.fecharLanc()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Data <span class="required">*</span></label>
+        <input type="date" id="lanc-data" />
+      </div>
+      <div class="form-group">
+        <label>Descrição <span class="required">*</span></label>
+        <input type="text" id="lanc-desc" placeholder="Ex: Manutenção inversores" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo <span class="required">*</span></label>
+          <select id="lanc-tipo">
+            <option value="receita">💚 Receita</option>
+            <option value="despesa">🔴 Despesa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Valor (R$) <span class="required">*</span></label>
+          <div class="input-prefix">
+            <span>R$</span>
+            <input type="number" id="lanc-valor" placeholder="0.00" step="0.01" min="0.01" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="ModFinanceiro.fecharLanc()">Cancelar</button>
+      <button class="btn btn-primary" onclick="ModFinanceiro.salvarLanc()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     TOAST CONTAINER
+     ============================================================ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script src="js/db.js"></script>
+<script src="js/clientes.js"></script>
+<script src="js/simulador.js"></script>
+<script src="js/usina_rateio.js"></script>
+<script src="js/financeiro.js"></script>
+<script src="js/backup.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
