@@ -10,6 +10,39 @@
 <body>
 
 <!-- ============================================================
+     TELA DE LOGIN (SUPERPOSTA A TUDO)
+     ============================================================ -->
+<div id="login-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+  <div class="card" style="width:100%; max-width:400px; padding:32px 24px;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="font-size:48px; margin-bottom:8px;">☀️</div>
+      <h2 style="color:var(--primary); margin:0;">IBIAPABA SOLAR</h2>
+      <p style="color:var(--gray-600); margin-top:4px;">Acesso restrito ao sistema</p>
+    </div>
+    
+    <div id="login-error" class="alert alert-error" style="display:none; margin-bottom:16px;"></div>
+
+    <form id="form-login" onsubmit="event.preventDefault(); App.fazerLogin();">
+      <div class="form-group">
+        <label>E-mail Corporativo</label>
+        <input type="email" id="login-email" placeholder="admin@ibiapaba.solar" required />
+      </div>
+      <div class="form-group" style="margin-bottom:24px;">
+        <label>Senha</label>
+        <input type="password" id="login-senha" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-login" style="font-size:16px;">
+        🔒 Entrar
+      </button>
+    </form>
+    
+    <div style="text-align:center; margin-top:24px; font-size:12px; color:var(--gray-500);">
+      &copy; 2026 Associação Ibiapaba Solar.<br/>Sistema gerenciado via nuvem.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      SIDEBAR
      ============================================================ -->
 <aside class="sidebar" id="sidebar">
@@ -53,6 +86,9 @@
   </nav>
 
   <div class="sidebar-footer">
+    <button class="btn btn-ghost btn-sm btn-full" onclick="App.fazerLogout()" style="margin-bottom:12px; color:var(--red); border:1px solid #fecaca">
+      🚪 Sair do Sistema
+    </button>
     <p>Lei <span>14.300/2022</span> · SCEE</p>
     <p style="margin-top:4px">v1.0 · Ceará</p>
   </div>
@@ -1078,8 +1114,17 @@
 <div class="toast-container" id="toast-container"></div>
 
 <!-- ============================================================
-     SCRIPTS
+     CONTAINER OCULTO PARA GERAÇÃO DE PDF
      ============================================================ -->
+<div id="pdf-container" style="display:none; padding:40px; background:white; color:black; width:800px; position:absolute; top:-9999px; left:-9999px;">
+</div>
+
+<!-- ============================================================
+     SCRIPTS (Bibliotecas Externas e Sistema)
+     ============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <script src="js/db.js"></script>
 <script src="js/tarifas.js"></script>
 <script src="js/clientes.js"></script>

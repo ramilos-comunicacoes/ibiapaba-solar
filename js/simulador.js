@@ -196,50 +196,111 @@ const ModSimulador = (() => {
     _updatePerdaLabel();
   }
 
-  /* ── Exportar resultado ─────────────────────────────────── */
-  function exportarResultado() {
+  /* ── Exportar Proposta PDF Profissional ─────────────────────────────────── */
+  async function exportarResultado() {
     if (!_resultado) { App.toast('Faça uma simulação primeiro.', 'warning'); return; }
     const r = _resultado;
-    const texto = `SIMULAÇÃO IBIAPABA SOLAR
-=============================
-Data: ${new Date().toLocaleDateString('pt-BR')}
-Tipo de Ligação: ${_tipoLabel(r.tipo)}
-Consumo Mensal: ${r.consumo} kWh
-Tarifa Média: R$ ${r.tarifa_kwh.toFixed(4)}/kWh
-Fator de Perda: ${(r.perda*100).toFixed(0)}%
+    
+    // Verificamos se a lib html2pdf está carregada
+    if (typeof html2pdf === 'undefined') {
+      App.toast('Biblioteca PDF não carregada. Tente recarregar a página.', 'error');
+      return;
+    }
 
-RESULTADOS:
-----------------------------
-Conta Atual (Cmc):          ${App.moeda(r.cmc)}
-Conta Estimada c/ GD (Cgd): ${App.moeda(r.cgd)}
-Economia Bruta:             ${App.moeda(r.economia_bruta)}
-Valor Contribuição (80%):   ${App.moeda(r.contribuicao)}
-Economia Líquida Cliente:   ${App.moeda(r.economia_liquida)}
+    App.toast('Gerando PDF da Proposta...', 'info');
 
-CENÁRIOS PROJETADOS:
-----------------------------
-Otimista:    ${App.moeda(r.economia_bruta)}
-Realista:    ${App.moeda(r.economia_real)}
-Conservador: ${App.moeda(r.economia_conserv)}
+    const container = document.getElementById('pdf-container');
+    container.style.display = 'block';
 
-PROJEÇÃO ANUAL:
-----------------------------
-Economia Líquida/Ano: ${App.moeda(r.economia_liquida * 12)}
-Contribuição/Ano:     ${App.moeda(r.contribuicao * 12)}
+    // Montar o HTML do PDF
+    container.innerHTML = `
+      <div style="font-family: 'Inter', sans-serif; color: #1f2937;">
+        <div style="text-align: center; border-bottom: 2px solid #16a34a; padding-bottom: 20px; margin-bottom: 30px;">
+          <h1 style="color: #16a34a; margin: 0; font-size: 28px;">☀️ Proposta Ibiapaba Solar</h1>
+          <p style="margin: 5px 0 0; color: #4b5563; font-size: 14px;">Lei 14.300/2022 - Geração Compartilhada Geração Distribuída</p>
+          <p style="margin: 5px 0 0; color: #9ca3af; font-size: 12px;">Data da Simulação: ${new Date().toLocaleDateString('pt-BR')}</p>
+        </div>
 
-AVISO LEGAL:
-Este relatório é uma projeção com margem de segurança.
-Valores reais podem variar conforme geração da usina e tarifas da concessionária.
-`;
+        <h3 style="margin-bottom: 10px; color: #374151;">🧑‍💻 Perfil do Cliente</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px;">
+          <tr style="background-color: #f3f4f6;">
+            <td style="padding: 10px; border: 1px solid #e5e7eb; width: 50%;"><strong>Tipo Ligação:</strong> ${_tipoLabel(r.tipo)}</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb; width: 50%;"><strong>Consumo Informado:</strong> ${r.consumo} kWh/mês</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Tarifa Média:</strong> R$ ${r.tarifa_kwh.toFixed(4)} / kWh</td>
+            <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>Perda Técnica na Injeção:</strong> ${(r.perda*100).toFixed(0)}%</td>
+          </tr>
+        </table>
 
-    const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = `simulacao-ibiapaba-${Date.now()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    App.toast('Relatório exportado!', 'success');
+        <h3 style="margin-bottom: 10px; color: #374151;">💰 Resultados da Economia</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; text-align: left; font-size: 14px;">
+          <thead>
+            <tr style="background-color: #16a34a; color: white;">
+              <th style="padding: 10px; border: 1px solid #e5e7eb;">Descrição</th>
+              <th style="padding: 10px; border: 1px solid #e5e7eb;">Valor (R$ / mês)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">Conta Atual s/ Solar (Estimada)</td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${App.moeda(r.cmc)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">Nova Conta Obrigatória na ENEL (Cgd)</td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${App.moeda(r.cgd)}</td>
+            </tr>
+            <tr style="background-color: #f3f4f6;">
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">Economia Bruta</td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb; color: #16a34a;"><strong>${App.moeda(r.economia_bruta)}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">Contribuição Mensal Associação</td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb; color: #dc2626;">- ${App.moeda(r.contribuicao)}</td>
+            </tr>
+            <tr style="background-color: #dcfce7; font-weight: bold;">
+              <td style="padding: 12px 10px; border: 1px solid #e5e7eb; font-size: 16px;">Sua Economia Líquida</td>
+              <td style="padding: 12px 10px; border: 1px solid #e5e7eb; font-size: 16px; color: #15803d;">${App.moeda(r.economia_liquida)} / mês</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-bottom: 10px; color: #374151;">📈 Projeção Anual</h3>
+        <div style="background-color: #f8fafc; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 30px;">
+          <p style="margin: 0; font-size: 18px; text-align: center;">
+            Com a Ibiapaba Solar, você economizará aproximadamente <br/>
+            <strong style="color: #16a34a; font-size: 24px;">${App.moeda(r.economia_liquida * 12)}</strong> no primeiro ano!
+          </p>
+        </div>
+
+        <div style="font-size: 10px; color: #6b7280; text-align: justify; margin-top: 50px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+          <strong>AVISO LEGAL:</strong> Este documento possui caráter exclusivamente informativo e simulatório. 
+          Os valores apresentados são baseados nas tarifas vigentes da concessionária local, aplicadas sem ICMS (benefício isenção ou base de cálculo reduzida a depender da UF para consumo gerado). 
+          Flutuações climáticas, tributárias, adição de bandeiras tarifárias e reajustes da distribuidora poderão afetar o valor real da economia. A contribuição associativa tem margem de segurança de mitigação de 10%.
+        </div>
+      </div>
+    `;
+
+    // Opções do PDF
+    const opt = {
+      margin:       10,
+      filename:     `Proposta_IbiapabaSolar_${Date.now()}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(container).save();
+      App.toast('PDF baixado!', 'success');
+    } catch(e) {
+      console.error(e);
+      App.toast('Erro ao gerar PDF', 'error');
+    } finally {
+      // Ocultar div de renderização
+      container.style.display = 'none';
+      container.innerHTML = '';
+    }
   }
 
   function _tipoLabel(t) {

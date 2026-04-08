@@ -242,17 +242,89 @@ const App = (() => {
       el.addEventListener('click', () => navegar(el.dataset.page));
     });
 
-    // Página inicial
-    navegar('dashboard');
+    // Escuta estado de autenticação
+    if (typeof DB.onAuthStateChange !== 'undefined') {
+      DB.onAuthStateChange((user) => {
+        if (user) {
+          // Logado
+          document.getElementById('login-overlay').style.display = 'none';
+          navegar('dashboard');
+        } else {
+          // Deslogado
+          document.getElementById('login-overlay').style.display = 'flex';
+          toast('Faça login para acessar o sistema', 'info');
+        }
+      });
 
-    // Backup automático a cada 30 minutos
-    setInterval(async () => {
-      const data = await DB.exportDB();
-      localStorage.setItem('ibiapaba_autobackup', JSON.stringify({ ts: Date.now(), data }));
-    }, 30 * 60 * 1000);
+      // Checa sessão atual
+      const user = await DB.getUser();
+      if (!user) {
+        document.getElementById('login-overlay').style.display = 'flex';
+        return; // Não inicializa telas ainda
+      }
+    } else {
+      // Fallback pra modo offline se DB.auth não existir
+      navegar('dashboard');
+    }
   }
 
-  return { init, navegar, moeda, toast, toggleSidebar, closeSidebar };
+  /* ── Autenticação ───────────────────────────────────────── */
+  async function fazerLogin() {
+    const email = document.getElementById('login-email').value;
+    const senha = document.getElementById('login-senha').value;
+    const btn = document.getElementById('btn-login');
+    const errEl = document.getElementById('login-error');
+    
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Aguarde...';
+
+    try {
+      try {
+        await DB.login(email, senha);
+      } catch (err) {
+        // Se der erro de credential, tentaremos registrar na surdina (ATENÇÃO: Apenas para facilitar 1º acesso no MVP)
+        // O ideal é ter tela separada ou bloquear o cadastro público depois
+        if (err.message && err.message.includes('Invalid login credentials')) {
+            console.log('User not found or invalid pass, trying to register as new...');
+            await DB.registrar(email, senha);
+            // Ao registrar, dependendo do Supabase, ele já loga ou pede confirmação de e-mail.
+            // Para não travar, avise o usuário
+            toast('Usuário novo! Verifique seu email caso necessário ou tente logar novamente.', 'info');
+        } else {
+            throw err;
+        }
+      }
+    } catch (e) {
+      errEl.textContent = 'Erro ao entrar: ' + (e.message || 'Credenciais inválidas');
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔒 Entrar';
+    }
+  }
+
+  async function fazerLogout() {
+    if (confirm('Deseja realmente sair do sistema?')) {
+      try {
+        await DB.logout();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  // Backup automático a cada 30 minutos
+  setInterval(async () => {
+    const data = await DB.exportDB();
+    localStorage.setItem('ibiapaba_autobackup', JSON.stringify({ ts: Date.now(), data }));
+  }, 30 * 60 * 1000);
+
+  return {
+    init, navegar, toggleSidebar, closeSidebar,
+    toast, moeda,
+    fazerLogin, fazerLogout
+  };
 })();
 
 window.App = App;
