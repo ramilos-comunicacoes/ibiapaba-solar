@@ -242,37 +242,20 @@ const App = (() => {
       el.addEventListener('click', () => navegar(el.dataset.page));
     });
 
-    // Escuta estado de autenticação
-    if (typeof DB.onAuthStateChange !== 'undefined') {
-      DB.onAuthStateChange((user) => {
-        if (user) {
-          // Logado
-          document.getElementById('login-overlay').style.display = 'none';
-          navegar('dashboard');
-        } else {
-          // Deslogado
-          document.getElementById('login-overlay').style.display = 'flex';
-          toast('Faça login para acessar o sistema', 'info');
-        }
-      });
-
-      // Checa sessão atual
-      const user = await DB.getUser();
-      if (!user) {
-        document.getElementById('login-overlay').style.display = 'flex';
-        return; // Não inicializa telas ainda
-      }
-    } else {
-      // Fallback pra modo offline se DB.auth não existir
+    // Escuta estado de autenticação simplificada (Hardcoded Custom)
+    const isLoggedLocal = localStorage.getItem('ibiapaba_logged');
+    if (isLoggedLocal === '1') {
+      document.getElementById('login-overlay').style.display = 'none';
       navegar('dashboard');
+    } else {
+      document.getElementById('login-overlay').style.display = 'flex';
+      toast('Faça login para acessar o sistema', 'info');
     }
   }
 
   /* ── Autenticação ───────────────────────────────────────── */
   async function fazerLogin() {
     const rawUser = document.getElementById('login-email').value.trim();
-    // Transforma o usuário num email válido para o Supabase caso não possua @
-    const email = rawUser.includes('@') ? rawUser : `${rawUser}@ibiapaba.solar`;
     const senha = document.getElementById('login-senha').value;
     const btn = document.getElementById('btn-login');
     const errEl = document.getElementById('login-error');
@@ -281,38 +264,27 @@ const App = (() => {
     btn.disabled = true;
     btn.textContent = 'Aguarde...';
 
-    try {
-      try {
-        await DB.login(email, senha);
-      } catch (err) {
-        // Se der erro de credential, tentaremos registrar na surdina (ATENÇÃO: Apenas para facilitar 1º acesso no MVP)
-        // O ideal é ter tela separada ou bloquear o cadastro público depois
-        if (err.message && err.message.includes('Invalid login credentials')) {
-            console.log('User not found or invalid pass, trying to register as new...');
-            await DB.registrar(email, senha);
-            // Ao registrar, dependendo do Supabase, ele já loga ou pede confirmação de e-mail.
-            // Para não travar, avise o usuário
-            toast('Usuário novo! Verifique seu email caso necessário ou tente logar novamente.', 'info');
-        } else {
-            throw err;
-        }
+    setTimeout(() => {
+      // Login hardcoded conforme solicitado
+      if (rawUser === 'admin.ibisolar26' && senha === 'ibi.solar26') {
+        localStorage.setItem('ibiapaba_logged', '1');
+        document.getElementById('login-overlay').style.display = 'none';
+        navegar('dashboard');
+        toast('Login bem sucedido!', 'success');
+      } else {
+        errEl.textContent = 'Usuário ou senha incorretos.';
+        errEl.style.display = 'block';
       }
-    } catch (e) {
-      errEl.textContent = 'Erro ao entrar: ' + (e.message || 'Credenciais inválidas');
-      errEl.style.display = 'block';
-    } finally {
       btn.disabled = false;
       btn.textContent = '🔒 Entrar';
-    }
+    }, 800);
   }
 
   async function fazerLogout() {
     if (confirm('Deseja realmente sair do sistema?')) {
-      try {
-        await DB.logout();
-      } catch (e) {
-        console.error(e);
-      }
+      localStorage.removeItem('ibiapaba_logged');
+      // Recarrega a página para resetar a aplicação e voltar pra tela de login
+      window.location.reload();
     }
   }
 
